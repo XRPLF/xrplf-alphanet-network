@@ -5,7 +5,11 @@
 
 include network/settings.mk
 
-PYTHON    ?= python3
+# The checkout's virtualenv holds multibranch-builder and the ops dependencies. Both are named by
+# absolute path so recipes work from a shell that has not activated it.
+VENV_BIN  := $(CURDIR)/.venv/bin
+BUILDER   := $(if $(wildcard $(VENV_BIN)/multibranch-builder),$(VENV_BIN)/multibranch-builder,multibranch-builder)
+PYTHON    ?= $(if $(wildcard $(VENV_BIN)/python3),$(VENV_BIN)/python3,python3)
 INVENTORY := network/inventory
 # Which conf compose/build/push act on. alphanet.conf composes the xrpld tree the network runs;
 # another conf composes and pushes its own integration branch but never deploys here.
@@ -66,17 +70,17 @@ help:   ## list targets
 # --- compose and build ---------------------------------------------------------------
 .PHONY: discover compose build push
 discover:   ## show which branches $(CONF) resolves to, without writing the tree
-	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
-	multibranch-builder compose --conf $(CONF) --workdir $(BUILD_DIR) $(BUILDER_OPTS) --dry-run
+	@command -v $(BUILDER) >/dev/null || { echo "multibranch-builder not found; run: python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'"; exit 1; }
+	$(BUILDER) compose --conf $(CONF) --workdir $(BUILD_DIR) $(BUILDER_OPTS) --dry-run
 
 compose:    ## merge the $(CONF) branches into $(BUILD_DIR) and write manifest.json
-	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
-	multibranch-builder compose --conf $(CONF) --workdir $(BUILD_DIR) $(BUILDER_OPTS)
+	@command -v $(BUILDER) >/dev/null || { echo "multibranch-builder not found; run: python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'"; exit 1; }
+	$(BUILDER) compose --conf $(CONF) --workdir $(BUILD_DIR) $(BUILDER_OPTS)
 
 build:      ## build the composed tree; for the xrpld conf also write .last-build.env (then `make push`)
-	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
+	@command -v $(BUILDER) >/dev/null || { echo "multibranch-builder not found; run: python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'"; exit 1; }
 	@[ -f "$(MANIFEST)" ] || { echo "no manifest at $(MANIFEST); run 'make compose' first"; exit 1; }
-	@image=$$(multibranch-builder build --workdir $(BUILD_DIR) --project $(PROJECT) --ar $(AR) \
+	@image=$$($(BUILDER) build --workdir $(BUILD_DIR) --project $(PROJECT) --ar $(AR) \
 	    $(if $(TAG),--tag $(TAG)) $(if $(strip $(POOL)),--pool $(POOL)) \
 	    $(BUILDER_OPTS) | tee /dev/stderr | tail -1); \
 	 [ -n "$$image" ] || { echo "BUILD FAILED: see the multibranch-builder error above and $(BUILD_JSON)"; exit 1; }; \
@@ -89,8 +93,8 @@ build:      ## build the composed tree; for the xrpld conf also write .last-buil
 	 fi
 
 push:       ## GPG-signed push of $(CONF)'s composed tree to $(TARGET_REPO)@$(TARGET_BRANCH); needs GITHUB_BOT_PAT and GIT_SIGNING_KEY
-	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
-	multibranch-builder push --workdir $(BUILD_DIR) --target $(TARGET_REPO)@$(TARGET_BRANCH)
+	@command -v $(BUILDER) >/dev/null || { echo "multibranch-builder not found; run: python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'"; exit 1; }
+	$(BUILDER) push --workdir $(BUILD_DIR) --target $(TARGET_REPO)@$(TARGET_BRANCH)
 
 # --- cluster and deploy --------------------------------------------------------------
 .PHONY: cluster network-deploy deploy genesis-deploy

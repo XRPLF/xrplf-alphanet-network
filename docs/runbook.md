@@ -10,8 +10,9 @@ The deploy runs from the operator's workstation, from the checkout of this repos
 below is complete on its own: it changes into that directory first, so it runs from any shell
 location. The workstation needs `gcloud` logged in as denis@xrpl.foundation (Cloud Build in
 project xrplf-perf-network, Artifact Registry in xrplf-alphanet), the operator ssh key
-`~/.ssh/xrpl-labs` loaded in the agent, the `xrpld-lab` and `multibranch-builder` CLIs on `PATH`
-(`.venv/bin` in this checkout has both), and the `claude` CLI for merge conflicts.
+`~/.ssh/xrpl-labs` loaded in the agent, `multibranch-builder` installed in this checkout's
+`.venv` (the Makefile runs it and the ops scripts from there, activated or not), `xrpld-lab` on
+`PATH`, and the `claude` CLI for merge conflicts.
 
 Two files make the deploy alphanet's deploy, and both are gitignored:
 

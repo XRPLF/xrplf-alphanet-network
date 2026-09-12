@@ -11,6 +11,8 @@ INVENTORY := network/inventory
 # another conf composes and pushes its own integration branch but never deploys here.
 CONF       ?= alphanet.conf
 XRPLD_CONF := alphanet.conf
+# Every conf the status page lists, so a developer sees the chain's branches and the SDK's.
+STATUS_CONFS := alphanet.conf xrpljs.conf
 # One build directory per conf: manifest.json and build.json are written at its root.
 BUILD_DIR  := $(WORKSPACE)/$(basename $(notdir $(CONF)))
 
@@ -164,7 +166,7 @@ record-deploy:   ## append {sha, image, genesis, date, operator} to data/deploys
 # services host, the first PEER in the inventory.
 STATUS_HOST := $(firstword $(PIPS))
 status-publish:   ## render network.json (last deploy, pinned branches, faucet, VL, amendments) and copy it to the services host
-	$(PYTHON) -m ops.status_publish --inventory $(INVENTORY) --conf $(CONF) --deploys data/deploys.json \
+	$(PYTHON) -m ops.status_publish --inventory $(INVENTORY) $(foreach c,$(STATUS_CONFS),--conf $(c)) --deploys data/deploys.json \
 	  $(if $(wildcard $(ANSIBLE_CONFIG)),--ansible-config $(ANSIBLE_CONFIG)) --out $(WORKSPACE)/network.json
 	scp -q -i $(SSH_KEY) -o IdentitiesOnly=yes -P $(SSH_PORT) $(WORKSPACE)/network.json $(SSH_USER)@$(STATUS_HOST):/opt/xrpld-status/network.json
 

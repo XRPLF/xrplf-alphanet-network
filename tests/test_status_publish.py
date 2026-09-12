@@ -18,6 +18,13 @@ XRPLF/rippled dangell7/subscriptions rebase
 XRPLF/rippled xrplf/smart-contracts
 """
 
+SDK_CONF = """
+base XRPLF/xrpl.js main
+target Transia-RnD/xrpl.js alphanet
+definitions https://alphanet.xrpl.org
+XRPLF/xrpl.js smart-contracts
+"""
+
 RPC_RESPONSES = {
     "server_info": {"info": {"validator_list": {"expiration": "2026-10-01T00:00:00Z"}}},
     "wallet_propose": {"account_id": "rFaucet"},
@@ -81,3 +88,27 @@ def test_cli_offline_writes_file(files, tmp_path):
     network = json.loads(out.read_text())
     assert network["last_deploy"]["sha"] == "abc"
     assert len(network["branches"]) == 2
+
+
+def test_branches_from_two_confs_carry_their_kind_and_base(tmp_path):
+    xrpld = tmp_path / "alphanet.conf"
+    xrpld.write_text(CONF)
+    sdk = tmp_path / "xrpljs.conf"
+    sdk.write_text(SDK_CONF)
+    branches = status_publish.branches_from_conf([xrpld, sdk])
+    assert [(b["kind"], b["branch"]) for b in branches] == [
+        ("xrpld", "dangell7/subscriptions"),
+        ("xrpld", "xrplf/smart-contracts"),
+        ("xrpl_js", "smart-contracts"),
+    ]
+    assert branches[0]["base"] == "XRPLF/rippled@develop"
+    assert branches[-1]["base"] == "XRPLF/xrpl.js@main"
+    assert branches[-1]["pr_url"] == "https://github.com/XRPLF/xrpl.js/tree/smart-contracts"
+
+
+def test_branches_from_conf_still_takes_one_path(tmp_path):
+    conf = tmp_path / "alphanet.conf"
+    conf.write_text(CONF)
+    assert [b["branch"] for b in status_publish.branches_from_conf(conf)] == [
+        "dangell7/subscriptions", "xrplf/smart-contracts",
+    ]

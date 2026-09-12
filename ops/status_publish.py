@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from multibranch_builder.conf import parse_config
+from multibranch_builder.targets import for_config
 
 from ops.faucet import derive_address, get_balance, load_faucet_seed, pick_admin_url, rpc
 from ops.nodes import Inventory, load_inventory
@@ -16,16 +17,24 @@ from ops.record_deploy import load_deploys
 DROPS_PER_XRP = 1_000_000
 
 
-def branches_from_conf(conf_path: str | Path) -> list[dict]:
-    config = parse_config(conf_path)
-    return [
-        {
-            "repo": f"{b.owner}/{b.repo}",
-            "branch": b.branch,
-            "pr_url": f"https://github.com/{b.owner}/{b.repo}/tree/{b.branch}",
-        }
-        for b in config.branches
-    ]
+def branches_from_conf(conf_paths: str | Path | list) -> list[dict]:
+    """Every branch of every conf, each carrying the kind and base tree it is composed into."""
+    paths = [conf_paths] if isinstance(conf_paths, (str, Path)) else conf_paths
+    branches = []
+    for conf_path in paths:
+        config = parse_config(conf_path)
+        kind = for_config(config).name
+        branches += [
+            {
+                "repo": f"{b.owner}/{b.repo}",
+                "branch": b.branch,
+                "pr_url": f"https://github.com/{b.owner}/{b.repo}/tree/{b.branch}",
+                "kind": kind,
+                "base": config.base.label,
+            }
+            for b in config.branches
+        ]
+    return branches
 
 
 def vl_from_node(admin_url: str, site: str) -> dict:
@@ -75,7 +84,8 @@ def render_network(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--inventory", required=True)
-    parser.add_argument("--conf", required=True)
+    parser.add_argument("--conf", action="append", required=True,
+                        help="conf file whose branches the page lists; repeat for the SDK conf")
     parser.add_argument("--deploys", required=True)
     parser.add_argument("--ansible-config", default="", help="xrpld-lab YAML holding the faucet seed; omit to leave the faucet panel empty")
     parser.add_argument("--offline", action="store_true", help="skip every node RPC; VL expiration, faucet and amendments stay empty")

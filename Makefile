@@ -79,7 +79,7 @@ build:      ## build the composed tree; for the xrpld conf also write .last-buil
 	@image=$$(multibranch-builder build --workdir $(BUILD_DIR) --project $(PROJECT) --ar $(AR) \
 	    $(if $(TAG),--tag $(TAG)) $(if $(strip $(POOL)),--pool $(POOL)) \
 	    $(BUILDER_OPTS) | tee /dev/stderr | tail -1); \
-	 [ -n "$$image" ] || { echo "BUILD FAILED: multibranch-builder build printed no image ref"; exit 1; }; \
+	 [ -n "$$image" ] || { echo "BUILD FAILED: see the multibranch-builder error above and $(BUILD_JSON)"; exit 1; }; \
 	 if [ "$(CONF)" = "$(XRPLD_CONF)" ]; then \
 	   sha=$$($(PYTHON) -c 'import json;print(json.load(open("$(BUILD_JSON)"))["composed_sha"])'); \
 	   printf 'IMAGE=%s\nBUILD_SERVER=%s\nBUILD_VERSION=%s\n' "$$image" "$(BUILD_SERVER)" "$$sha" > $(LAST_BUILD); \

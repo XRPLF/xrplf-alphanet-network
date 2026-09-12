@@ -7,7 +7,12 @@ include network/settings.mk
 
 PYTHON    ?= python3
 INVENTORY := network/inventory
-CONF      := alphanet.conf
+# Which conf compose/build/push act on. alphanet.conf composes the xrpld tree the network runs;
+# another conf composes and pushes its own integration branch but never deploys here.
+CONF       ?= alphanet.conf
+XRPLD_CONF := alphanet.conf
+# One build directory per conf: manifest.json and build.json are written at its root.
+BUILD_DIR  := $(WORKSPACE)/$(basename $(notdir $(CONF)))
 
 # Node inventory, read from network/inventory.
 VIPS       := $(shell awk '$$1=="VALIDATOR"{print $$2}' $(INVENTORY))
@@ -19,15 +24,23 @@ SSH_PORT    := $(shell awk '$$1=="SSH_PORT"{print $$2}' $(INVENTORY))
 SSH_USER    := $(shell awk '$$1=="SSH_USER"{print $$2}' $(INVENTORY))
 VL_SITE     := $(shell awk '$$1=="VL_SITE"{print $$2}' $(INVENTORY))
 
-# Integration branch, read from alphanet.conf. xrpld-lab fetches the feature list from
-# BUILD_SERVER at BUILD_VERSION, so the composed tree must be pushed there before deploy.
+# Integration branch of $(CONF), where `push` sends that conf's composed tree.
 TARGET_REPO   := $(shell awk '$$1=="target"{print $$2}' $(CONF))
 TARGET_BRANCH := $(shell awk '$$1=="target"{print $$3}' $(CONF))
-BUILD_SERVER  ?= https://github.com/$(TARGET_REPO)/tree/$(TARGET_BRANCH)
+# xrpld-lab fetches the feature list from BUILD_SERVER at BUILD_VERSION, so the composed xrpld
+# tree must be pushed to the xrpld conf's target before deploy.
+BUILD_SERVER  ?= https://github.com/$(shell awk '$$1=="target"{print $$2}' $(XRPLD_CONF))/tree/$(shell awk '$$1=="target"{print $$3}' $(XRPLD_CONF))
 
-TREE     := $(WORKSPACE)/rippled
-MANIFEST := $(WORKSPACE)/manifest.json
-BUILD_JSON := $(WORKSPACE)/build.json
+# The xrpld kind takes force_supported; other kinds take no options.
+ifeq ($(CONF),$(XRPLD_CONF))
+BUILDER_OPTS ?= --set force_supported=$(FORCE_SUPPORTED)
+else
+BUILDER_OPTS ?=
+endif
+
+TREE     := $(WORKSPACE)/$(basename $(notdir $(XRPLD_CONF)))/rippled
+MANIFEST := $(BUILD_DIR)/manifest.json
+BUILD_JSON := $(BUILD_DIR)/build.json
 MAIN_YML := $(WORKSPACE)/$(CLUSTER)-cluster/ansible/main.yml
 
 # A chain reset is confirmed only by CONFIRM_GENESIS=alphanet given on the command line.
@@ -50,28 +63,32 @@ help:   ## list targets
 
 # --- compose and build ---------------------------------------------------------------
 .PHONY: discover compose build push
-discover:   ## show which branches alphanet.conf resolves to, without writing the tree
+discover:   ## show which branches $(CONF) resolves to, without writing the tree
 	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
-	multibranch-builder compose --conf $(CONF) --workdir $(WORKSPACE) --dry-run --force-supported $(FORCE_SUPPORTED)
+	multibranch-builder compose --conf $(CONF) --workdir $(BUILD_DIR) $(BUILDER_OPTS) --dry-run
 
-compose:    ## merge the alphanet.conf branches into $(WORKSPACE)/rippled and write manifest.json
+compose:    ## merge the $(CONF) branches into $(BUILD_DIR) and write manifest.json
 	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
-	multibranch-builder compose --conf $(CONF) --workdir $(WORKSPACE) --force-supported $(FORCE_SUPPORTED)
+	multibranch-builder compose --conf $(CONF) --workdir $(BUILD_DIR) $(BUILDER_OPTS)
 
-build:      ## Cloud Build the composed tree and write .last-build.env (run `make push` to publish the tree)
+build:      ## build the composed tree; for the xrpld conf also write .last-build.env (then `make push`)
 	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
-	@[ -d "$(TREE)" ] || { echo "no composed tree at $(TREE); run 'make compose' first"; exit 1; }
-	@image=$$(multibranch-builder build --tree $(TREE) --project $(PROJECT) --ar $(AR) \
+	@[ -f "$(MANIFEST)" ] || { echo "no manifest at $(MANIFEST); run 'make compose' first"; exit 1; }
+	@image=$$(multibranch-builder build --workdir $(BUILD_DIR) --project $(PROJECT) --ar $(AR) \
 	    $(if $(TAG),--tag $(TAG)) $(if $(strip $(POOL)),--pool $(POOL)) \
-	    --force-supported $(FORCE_SUPPORTED) --workdir $(WORKSPACE) | tee /dev/stderr | tail -1); \
+	    $(BUILDER_OPTS) | tee /dev/stderr | tail -1); \
 	 [ -n "$$image" ] || { echo "BUILD FAILED: multibranch-builder build printed no image ref"; exit 1; }; \
-	 sha=$$(git -C $(TREE) rev-parse HEAD); \
-	 printf 'IMAGE=%s\nBUILD_SERVER=%s\nBUILD_VERSION=%s\n' "$$image" "$(BUILD_SERVER)" "$$sha" > $(LAST_BUILD); \
-	 echo "wrote $(LAST_BUILD): IMAGE=$$image BUILD_VERSION=$$sha"
+	 if [ "$(CONF)" = "$(XRPLD_CONF)" ]; then \
+	   sha=$$($(PYTHON) -c 'import json;print(json.load(open("$(BUILD_JSON)"))["composed_sha"])'); \
+	   printf 'IMAGE=%s\nBUILD_SERVER=%s\nBUILD_VERSION=%s\n' "$$image" "$(BUILD_SERVER)" "$$sha" > $(LAST_BUILD); \
+	   echo "wrote $(LAST_BUILD): IMAGE=$$image BUILD_VERSION=$$sha"; \
+	 else \
+	   echo "built $(CONF): $$image"; \
+	 fi
 
-push:       ## GPG-signed push of the composed tree to $(TARGET_REPO)@$(TARGET_BRANCH); needs GITHUB_BOT_PAT and GIT_SIGNING_KEY
+push:       ## GPG-signed push of $(CONF)'s composed tree to $(TARGET_REPO)@$(TARGET_BRANCH); needs GITHUB_BOT_PAT and GIT_SIGNING_KEY
 	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
-	multibranch-builder push --tree $(TREE) --target $(TARGET_REPO)@$(TARGET_BRANCH) --manifest $(MANIFEST) --build $(BUILD_JSON)
+	multibranch-builder push --workdir $(BUILD_DIR) --target $(TARGET_REPO)@$(TARGET_BRANCH)
 
 # --- cluster and deploy --------------------------------------------------------------
 .PHONY: cluster network-deploy deploy genesis-deploy

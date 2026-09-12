@@ -62,14 +62,21 @@ commit it here.
 ```bash
 cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make compose
 cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make build
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make push
 ```
 
-`compose` writes the merged tree to `$(WORKSPACE)/rippled` and `manifest.json`. `build` runs
-the Cloud Build (`--force-supported ON`: the chain has amendments enabled that the branch may
-not mark supported, and an unsupported enabled amendment amendment-blocks the node at startup),
-then pushes the tree to `Transia-RnD/rippled@alphanet` so xrpld-lab can fetch the feature
-list at that commit, and writes `.last-build.env` with `IMAGE`, `BUILD_SERVER` and
-`BUILD_VERSION`. `cluster` and `deploy` read that file.
+`compose` writes the merged tree and `manifest.json` to the conf's build directory,
+`$(WORKSPACE)/alphanet` for `alphanet.conf`. `build` runs the Cloud Build with
+`--set force_supported=ON` (the chain has amendments enabled that the branch may not mark
+supported, and an unsupported enabled amendment amendment-blocks the node at startup) and
+writes `.last-build.env` with `IMAGE`, `BUILD_SERVER` and `BUILD_VERSION`; `cluster` and
+`deploy` read that file. `push` signs the composed tree and force-pushes it to the conf's
+target branch, which is where xrpld-lab fetches the feature list at `BUILD_VERSION`, so it
+must run before `deploy`.
+
+Each conf composes into its own build directory, so `make discover CONF=<file>` and the
+compose, build and push targets take a `CONF=` override; the deploy chain always uses
+`alphanet.conf`.
 
 ## 3. Dry run, then live
 

@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from xrpld_builder.conf import parse_config
+from multibranch_builder.conf import parse_config
 
 from ops.faucet import derive_address, get_balance, load_faucet_seed, pick_admin_url, rpc
 from ops.nodes import Inventory, load_inventory

@@ -1,5 +1,5 @@
 # Alphanet: build, deploy and operate the Foundation's live public XRPL staging network.
-# Build and compose come from the xrpld-builder CLI; cluster generation and deploy from xrpld-lab.
+# Build and compose come from the multibranch-builder CLI; cluster generation and deploy from xrpld-lab.
 # This Makefile knows one network, so a chain reset is never the default: `deploy` always passes
 # --genesis 0 and only `genesis-deploy CONFIRM_GENESIS=alphanet` passes --genesis 1.
 
@@ -51,27 +51,27 @@ help:   ## list targets
 # --- compose and build ---------------------------------------------------------------
 .PHONY: discover compose build push
 discover:   ## show which branches alphanet.conf resolves to, without writing the tree
-	@command -v xrpld-builder >/dev/null || { echo "xrpld-builder not found"; exit 1; }
-	xrpld-builder compose --conf $(CONF) --workdir $(WORKSPACE) --dry-run --force-supported $(FORCE_SUPPORTED)
+	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
+	multibranch-builder compose --conf $(CONF) --workdir $(WORKSPACE) --dry-run --force-supported $(FORCE_SUPPORTED)
 
 compose:    ## merge the alphanet.conf branches into $(WORKSPACE)/rippled and write manifest.json
-	@command -v xrpld-builder >/dev/null || { echo "xrpld-builder not found"; exit 1; }
-	xrpld-builder compose --conf $(CONF) --workdir $(WORKSPACE) --force-supported $(FORCE_SUPPORTED)
+	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
+	multibranch-builder compose --conf $(CONF) --workdir $(WORKSPACE) --force-supported $(FORCE_SUPPORTED)
 
 build:      ## Cloud Build the composed tree and write .last-build.env (run `make push` to publish the tree)
-	@command -v xrpld-builder >/dev/null || { echo "xrpld-builder not found"; exit 1; }
+	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
 	@[ -d "$(TREE)" ] || { echo "no composed tree at $(TREE); run 'make compose' first"; exit 1; }
-	@image=$$(xrpld-builder build --tree $(TREE) --project $(PROJECT) --ar $(AR) \
+	@image=$$(multibranch-builder build --tree $(TREE) --project $(PROJECT) --ar $(AR) \
 	    $(if $(TAG),--tag $(TAG)) $(if $(strip $(POOL)),--pool $(POOL)) \
 	    --force-supported $(FORCE_SUPPORTED) --workdir $(WORKSPACE) | tee /dev/stderr | tail -1); \
-	 [ -n "$$image" ] || { echo "BUILD FAILED: xrpld-builder build printed no image ref"; exit 1; }; \
+	 [ -n "$$image" ] || { echo "BUILD FAILED: multibranch-builder build printed no image ref"; exit 1; }; \
 	 sha=$$(git -C $(TREE) rev-parse HEAD); \
 	 printf 'IMAGE=%s\nBUILD_SERVER=%s\nBUILD_VERSION=%s\n' "$$image" "$(BUILD_SERVER)" "$$sha" > $(LAST_BUILD); \
 	 echo "wrote $(LAST_BUILD): IMAGE=$$image BUILD_VERSION=$$sha"
 
 push:       ## GPG-signed push of the composed tree to $(TARGET_REPO)@$(TARGET_BRANCH); needs GITHUB_BOT_PAT and GIT_SIGNING_KEY
-	@command -v xrpld-builder >/dev/null || { echo "xrpld-builder not found"; exit 1; }
-	xrpld-builder push --tree $(TREE) --target $(TARGET_REPO)@$(TARGET_BRANCH) --manifest $(MANIFEST) --build $(BUILD_JSON)
+	@command -v multibranch-builder >/dev/null || { echo "multibranch-builder not found"; exit 1; }
+	multibranch-builder push --tree $(TREE) --target $(TARGET_REPO)@$(TARGET_BRANCH) --manifest $(MANIFEST) --build $(BUILD_JSON)
 
 # --- cluster and deploy --------------------------------------------------------------
 .PHONY: cluster network-deploy deploy genesis-deploy

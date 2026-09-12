@@ -10,7 +10,7 @@ requires-python = ">=3.10"
 dependencies = [
     "requests>=2.31",
     "pyyaml>=6.0",
-    "xrpld-builder",
+    "multibranch-builder",
 ]
 
 [project.optional-dependencies]

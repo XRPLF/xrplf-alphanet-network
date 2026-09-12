@@ -6,8 +6,8 @@ faucet. This repository is the Foundation-owned home of everything about that ne
 configuration, the deploy Makefile, faucet and health operations, per-node drill SSH keys,
 monitoring setup, deploy history and the runbook.
 
-Build and compose tooling is not here. The Makefile calls the `xrpld-builder` CLI (sibling
-package, `xrpld-builder`) to merge the branches and run the Cloud Build, and the installed
+Build and compose tooling is not here. The Makefile calls the `multibranch-builder` CLI (sibling
+package, `multibranch-builder`) to merge the branches and run the Cloud Build, and the installed
 `xrpld-lab` CLI to generate the cluster config and run the ansible deploy.
 
 ## The network
@@ -30,7 +30,7 @@ Every DNS record and the SSH access model are documented in `network/inventory`.
 
 | Path | Holds |
 |---|---|
-| `alphanet.conf` | base, target and the branches xrpld-builder merges into the integration branch |
+| `alphanet.conf` | base, target and the branches multibranch-builder merges into the integration branch |
 | `network/inventory` | hosts, roles, node names, SSH port/user/key paths, VL site, DNS record comments |
 | `network/settings.mk` | build and xrpld-lab settings: NETWORK_ID, ONLINE_DELETE, DATABASE_PATH, STATSD_ADDRESS, PERF_PATH, FORCE_SUPPORTED, CLUSTER, WORKSPACE, PROJECT, POOL, AR |
 | `network/ansible.example.yml` | template for `network/ansible.yml` (gitignored): topology, nginx/faucet services, alloy credentials |

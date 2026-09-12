@@ -10,7 +10,7 @@ The deploy runs from the operator's workstation, from the checkout of this repos
 below is complete on its own: it changes into that directory first, so it runs from any shell
 location. The workstation needs `gcloud` logged in as denis@xrpl.foundation (Cloud Build in
 project xrplf-perf-network, Artifact Registry in xrplf-alphanet), the operator ssh key
-`~/.ssh/xrpl-labs` loaded in the agent, the `xrpld-lab` and `xrpld-builder` CLIs on `PATH`
+`~/.ssh/xrpl-labs` loaded in the agent, the `xrpld-lab` and `multibranch-builder` CLIs on `PATH`
 (`.venv/bin` in this checkout has both), and the `claude` CLI for merge conflicts.
 
 Two files make the deploy alphanet's deploy, and both are gitignored:
@@ -52,7 +52,7 @@ cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make keystore-r
 cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make discover
 ```
 
-Runs `xrpld-builder compose --dry-run` on `alphanet.conf` and prints the branches that will
+Runs `multibranch-builder compose --dry-run` on `alphanet.conf` and prints the branches that will
 be merged into `Transia-RnD/rippled@alphanet` without writing the tree. Get sign-off on the
 list. To add a branch, add a `<owner/repo> <branch> [rebase]` line to `alphanet.conf` and
 commit it here.

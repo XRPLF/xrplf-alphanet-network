@@ -51,7 +51,7 @@ BOOTSTRAP_VL    ?=
 # xrpld-lab cluster name: $(WORKSPACE)/$(CLUSTER)-cluster holds the keystore (VL publisher key
 # plus validator keys) that is the network's identity.
 CLUSTER   ?= xrpld-alphanet
-# Workspace root for xrpld-builder (tree, manifest, build record) and xrpld-lab (cluster dir).
+# Workspace root for multibranch-builder (tree, manifest, build record) and xrpld-lab (cluster dir).
 # Point it at the canonical workspace holding the live keystore; a fresh workspace has no
 # keystore and xrpld-lab refuses a non-genesis deploy without one.
 WORKSPACE ?= workspace

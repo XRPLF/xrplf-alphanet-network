@@ -75,7 +75,10 @@ nohup make deploy > /home/sentinel/.sentinel/logs/alphanet-$(date +%F-%H%M).log 
 ```
 
 `deploy` runs `cluster` with `GENESIS=0`, `network-deploy` (rolling, one host at a time, then
-`xrpld-lab health` waits for consensus) and `record-deploy`. Before the ansible runs,
+`xrpld-lab health` waits for consensus), `record-deploy` and `status-publish` (renders
+`network.json` from `data/deploys.json`, `alphanet.conf`, the inventory and the node's
+`server_info`, `feature` and faucet `account_info`, and copies it to pnode1 for the status page
+at `https://alphanet.xrpl.org/status/`). Before the ansible runs,
 `network-deploy` inspects the generated `main.yml` and refuses it if it contains
 `rm -rf /var/lib/xrpld/db` and no genesis confirmation was given, so a stale genesis playbook
 in the workspace cannot be deployed by accident.

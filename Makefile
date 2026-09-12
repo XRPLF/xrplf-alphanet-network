@@ -116,6 +116,7 @@ deploy:   ## cluster + network-deploy with the last build, preserving the chain 
 	$(MAKE) cluster GENESIS=0 IMAGE="$(IMAGE)" BUILD_SERVER="$(BUILD_SERVER)" BUILD_VERSION="$(BUILD_VERSION)"
 	$(MAKE) network-deploy
 	$(MAKE) record-deploy GENESIS=0
+	$(MAKE) status-publish
 
 genesis-deploy:   ## RESET the chain: cluster + network-deploy with --genesis 1, then fund the faucet. Needs CONFIRM_GENESIS=alphanet
 	@if [ -z "$(GENESIS_CONFIRMED)" ]; then \
@@ -127,9 +128,10 @@ genesis-deploy:   ## RESET the chain: cluster + network-deploy with --genesis 1,
 	$(MAKE) faucet-fund
 	$(MAKE) faucet-verify
 	$(MAKE) record-deploy GENESIS=1
+	$(MAKE) status-publish
 
 # --- health, faucet, deploy history --------------------------------------------------
-.PHONY: health faucet-fund faucet-verify record-deploy status
+.PHONY: health faucet-fund faucet-verify record-deploy status status-publish
 health:   ## server_info on every node's admin port; validators must be proposing, peers full
 	$(PYTHON) -m ops.health --inventory $(INVENTORY)
 
@@ -141,6 +143,14 @@ faucet-verify:   ## check the faucet account balance is above the minimum
 
 record-deploy:   ## append {sha, image, genesis, date, operator} to data/deploys.json
 	$(PYTHON) -m ops.record_deploy --sha "$(BUILD_VERSION)" --image "$(IMAGE)" --genesis $(GENESIS) --operator "$(USER)"
+
+# The status page (xrpld-lab `status` service) reads /opt/xrpld-status/network.json on the
+# services host, the first PEER in the inventory.
+STATUS_HOST := $(firstword $(PIPS))
+status-publish:   ## render network.json (last deploy, pinned branches, faucet, VL, amendments) and copy it to the services host
+	$(PYTHON) -m ops.status_publish --inventory $(INVENTORY) --conf $(CONF) --deploys data/deploys.json \
+	  $(if $(wildcard $(ANSIBLE_CONFIG)),--ansible-config $(ANSIBLE_CONFIG)) --out $(WORKSPACE)/network.json
+	scp -q -i $(SSH_KEY) -o IdentitiesOnly=yes -P $(SSH_PORT) $(WORKSPACE)/network.json $(SSH_USER)@$(STATUS_HOST):/opt/xrpld-status/network.json
 
 status:   ## print the inventory and the last recorded deploy
 	@echo "validators: $(VIPS)"; echo "peers:      $(PIPS)"; echo "nodes:      $(NODE_NAMES)"

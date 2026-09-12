@@ -5,8 +5,10 @@ separate target that refuses to run without an explicit confirmation on the comm
 
 ## Where the deploy runs
 
-Run the deploy from a checkout of this repository on the sentinel server, as the `sentinel`
-user. Host, port, key and user are in the atlas entry for `server:sentinel`. The two files
+Run the deploy from the checkout of this repository at `/home/sentinel/xrplf-alphanet-network`
+on the sentinel server, as the `sentinel` user. Every command below is complete on its own: it
+changes into that directory first, so it runs from any shell location. Host, port, key and user
+are in the atlas entry for `server:sentinel`. The two files
 that make the deploy alphanet's deploy live there and nowhere else today (unverified in this
 repository; check on the server before the first run):
 
@@ -24,9 +26,11 @@ repository; check on the server before the first run):
 Point the Makefile at them:
 
 ```bash
-export WORKSPACE=/home/sentinel/.sentinel/xrpld-lab/workspace
-export ANSIBLE_CONFIG=/home/sentinel/.sentinel/xrpld-lab/alphanet-ansible.yml
+cd /home/sentinel/xrplf-alphanet-network && printf 'WORKSPACE=/home/sentinel/.sentinel/xrpld-lab/workspace\nANSIBLE_CONFIG=/home/sentinel/.sentinel/xrpld-lab/alphanet-ansible.yml\n' > .env.mk
 ```
+
+`network/settings.mk` includes `.env.mk` when it exists (gitignored), so the two paths are set
+once per checkout instead of per shell.
 
 Never copy the keystore or the ansible YAML into this repository or another machine without
 Denis deciding it; `.gitignore` excludes `network/ansible.yml` and `workspace/`.
@@ -38,7 +42,7 @@ access to `Transia-RnD/rippled`.
 ## 1. Discover
 
 ```bash
-make discover
+cd /home/sentinel/xrplf-alphanet-network && make discover
 ```
 
 Runs `xrpld-builder compose --dry-run` on `alphanet.conf` and prints the branches that will
@@ -49,8 +53,8 @@ commit it here.
 ## 2. Compose and build
 
 ```bash
-make compose
-make build
+cd /home/sentinel/xrplf-alphanet-network && make compose
+cd /home/sentinel/xrplf-alphanet-network && make build
 ```
 
 `compose` writes the merged tree to `$(WORKSPACE)/rippled` and `manifest.json`. `build` runs
@@ -63,7 +67,7 @@ list at that commit, and writes `.last-build.env` with `IMAGE`, `BUILD_SERVER` a
 ## 3. Dry run, then live
 
 ```bash
-make -n deploy
+cd /home/sentinel/xrplf-alphanet-network && make -n deploy
 ```
 
 Prints every `xrpld-lab` command that a live run would execute. Read the `create:ansible`
@@ -71,7 +75,7 @@ line: `--genesis 0`, `--network_id 24100`, `--online_delete 10000`,
 `--database_path /opt/ripple/lib/db`, the image and the build version.
 
 ```bash
-nohup make deploy > /home/sentinel/.sentinel/logs/alphanet-$(date +%F-%H%M).log 2>&1 < /dev/null &
+cd /home/sentinel/xrplf-alphanet-network && nohup make deploy > /home/sentinel/.sentinel/logs/alphanet-$(date +%F-%H%M).log 2>&1 < /dev/null &
 ```
 
 `deploy` runs `cluster` with `GENESIS=0`, `network-deploy` (rolling, one host at a time, then
@@ -94,9 +98,9 @@ faucet from the new genesis account. It also applies the pending `NETWORK_ID` ch
 24100). Get explicit approval from Denis before running it.
 
 ```bash
-make genesis-deploy                          # refuses, exit 2, prints why
-make -n genesis-deploy CONFIRM_GENESIS=alphanet   # dry run of the live commands
-nohup make genesis-deploy CONFIRM_GENESIS=alphanet > /home/sentinel/.sentinel/logs/alphanet-genesis-$(date +%F-%H%M).log 2>&1 < /dev/null &
+cd /home/sentinel/xrplf-alphanet-network && make genesis-deploy                          # refuses, exit 2, prints why
+cd /home/sentinel/xrplf-alphanet-network && make -n genesis-deploy CONFIRM_GENESIS=alphanet   # dry run of the live commands
+cd /home/sentinel/xrplf-alphanet-network && nohup make genesis-deploy CONFIRM_GENESIS=alphanet > /home/sentinel/.sentinel/logs/alphanet-genesis-$(date +%F-%H%M).log 2>&1 < /dev/null &
 ```
 
 `CONFIRM_GENESIS=alphanet` must be given on the make command line; an environment variable
@@ -115,7 +119,7 @@ Drop it on the next deploy once every node fetches the VL.
 ```bash
 curl -s https://alphanet.xrpl.org -X POST -H 'Content-Type: application/json' \
   -d '{"method":"server_info","params":[{}]}' | jq '.result.info.server_state, .result.info.complete_ledgers'
-make health
+cd /home/sentinel/xrplf-alphanet-network && make health
 ```
 
 Expect `proposing` or `full` and a growing `complete_ledgers`. `make health` queries each

@@ -9,3 +9,5 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 *.egg-info/
+# Per-checkout WORKSPACE/ANSIBLE_CONFIG overrides
+.env.mk

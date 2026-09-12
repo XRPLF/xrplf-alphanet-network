@@ -55,6 +55,8 @@ CLUSTER   ?= xrpld-alphanet
 WORKSPACE ?= workspace
 # Topology + services YAML for xrpld-lab create:ansible; carries the faucet seed, gitignored.
 ANSIBLE_CONFIG ?= network/ansible.yml
+# Per-checkout overrides of WORKSPACE and ANSIBLE_CONFIG (the sentinel paths), gitignored.
+-include .env.mk
 # Checkout of peersyst/xrpl-monitoring, the Alloy image build context.
 ALLOY_SRC ?= ../xrpl-monitoring
 

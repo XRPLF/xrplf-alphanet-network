@@ -6,16 +6,16 @@ faucet. This repository is the Foundation-owned home of everything about that ne
 configuration, the deploy Makefile, faucet and health operations, per-node drill SSH keys,
 monitoring setup, deploy history and the runbook.
 
-Build and compose tooling is not here. The Makefile calls the `multibranch-builder` CLI (sibling
-package, `multibranch-builder`) to merge the branches and run the Cloud Build, and the installed
-`xrpld-lab` CLI to generate the cluster config and run the ansible deploy.
+Build and compose tooling is not here. The Makefile calls two sibling packages:
+[multibranch-builder](https://github.com/XRPLF/multibranch-builder) merges the `alphanet.conf`
+branches into one tree and runs the Cloud Build; [xrpld-lab](https://github.com/XRPLF/xrpld-lab)
+generates the cluster config, mints the keystore and runs the ansible deploy.
 
 ## The network
 
 | | |
 |---|---|
-| Validators | vnode1..6 at 79.110.60.99-104 |
-| Peers | pnode1 at 79.110.60.105 (public endpoint, faucet, VL host), pnode2 at 79.110.60.106 |
+| Nodes | six validators and two peers on XRPL-Labs bare metal; hosts in `network/inventory`, live state at `https://alphanet.xrpl.org/status/` |
 | Public endpoint | `wss://alphanet.xrpl.org`, `https://alphanet.xrpl.org` (Cloudflare proxied, port 443) |
 | RPC | `rpc.alphanet.xrpl.org` (DNS-only, origin nginx port 5017) |
 | Faucet | `faucet.alphanet.xrpl.org` |
@@ -30,12 +30,12 @@ Every DNS record and the SSH access model are documented in `network/inventory`.
 
 | Path | Holds |
 |---|---|
-| `alphanet.conf` | base, target and the branches multibranch-builder merges into the integration branch |
+| `alphanet.conf` | base, target and the branches merged into the integration branch |
 | `network/inventory` | hosts, roles, node names, SSH port/user/key paths, VL site, DNS record comments |
 | `network/settings.mk` | build and xrpld-lab settings: NETWORK_ID, ONLINE_DELETE, DATABASE_PATH, STATSD_ADDRESS, PERF_PATH, FORCE_SUPPORTED, CLUSTER, WORKSPACE, PROJECT, POOL, AR |
-| `network/ansible.example.yml` | template for `network/ansible.yml` (gitignored): topology, nginx/faucet services, alloy credentials |
-| `Makefile` | discover, compose, build, cluster, network-deploy, deploy, genesis-deploy, health, faucet-*, keys-*, alloy-*, status, record-deploy |
-| `ops/` | `nodes.py` (inventory parser, admin ports), `health.py`, `faucet.py`, `record_deploy.py` |
+| `network/ansible.example.yml` | template for `network/ansible.yml` (gitignored): topology, nginx, faucet, VL and status services, alloy credentials |
+| `Makefile` | discover, compose, build, push, cluster, network-deploy, deploy, genesis-deploy, health, faucet-*, keystore-backup/restore, keys-*, alloy-*, status, status-publish, record-deploy |
+| `ops/` | `nodes.py` (inventory parser, admin ports), `health.py`, `faucet.py`, `record_deploy.py`, `status_publish.py` (renders `network.json` for the status page) |
 | `infra/keys/drill-keys.sh` | per-node drill SSH keys: gen, install, verify, isolate, share, revoke, list |
 | `infra/observability/alloy-node-setup.sh` | adds `[insight]` and `[perf]` to a node and runs the Grafana Alloy sidecar |
 | `data/deploys.json` | deploy history, appended by `make record-deploy` |
@@ -69,7 +69,7 @@ peers `5005 + i*10` (pnode1 5015, pnode2 5025). `ops/nodes.py` derives them from
 ## data/deploys.json
 
 A JSON list, one object per deploy, appended by `make record-deploy` (which `deploy` and
-`genesis-deploy` run last):
+`genesis-deploy` run before `status-publish`):
 
 ```json
 {

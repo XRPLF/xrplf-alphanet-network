@@ -96,6 +96,22 @@ push:       ## GPG-signed push of $(CONF)'s composed tree to $(TARGET_REPO)@$(TA
 	@command -v $(BUILDER) >/dev/null || { echo "multibranch-builder not found; run: python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'"; exit 1; }
 	$(BUILDER) push --workdir $(BUILD_DIR) --target $(TARGET_REPO)@$(TARGET_BRANCH)
 
+# --- one trigger ---------------------------------------------------------------------
+# Compose, build and deploy in one go, stopping at the first failure. relaunch resets the
+# chain and needs the same confirmation genesis-deploy needs; redeploy preserves it.
+.PHONY: relaunch redeploy
+relaunch:   ## compose + build + genesis-deploy + keystore-backup (needs CONFIRM_GENESIS=alphanet)
+	@[ -n "$(GENESIS_CONFIRMED)" ] || { echo "REFUSED: relaunch resets alphanet; run 'make relaunch CONFIRM_GENESIS=alphanet'"; exit 1; }
+	$(MAKE) compose
+	$(MAKE) build
+	$(MAKE) genesis-deploy CONFIRM_GENESIS=alphanet
+	$(MAKE) keystore-backup
+
+redeploy:   ## compose + build + deploy, chain preserved
+	$(MAKE) compose
+	$(MAKE) build
+	$(MAKE) deploy
+
 # --- cluster and deploy --------------------------------------------------------------
 .PHONY: cluster network-deploy deploy genesis-deploy
 cluster:   ## generate cluster config + ansible for the inventory (xrpld-lab create:ansible)

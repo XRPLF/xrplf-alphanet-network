@@ -32,7 +32,7 @@ Never copy the keystore or the ansible YAML into this repository or another mach
 Denis deciding it; `.gitignore` excludes `network/ansible.yml` and `workspace/`.
 
 The build needs `gcloud` auth for project `xrplf-perf-network` (where Cloud Build runs) and
-push access to the Artifact Registry in `xrplf-alphanet`. `xrpld-compose push` needs push
+push access to the Artifact Registry in `xrplf-alphanet`. `xrpld-builder push` needs push
 access to `Transia-RnD/rippled`.
 
 ## 1. Discover
@@ -41,7 +41,7 @@ access to `Transia-RnD/rippled`.
 make discover
 ```
 
-Runs `xrpld-compose compose --dry-run` on `alphanet.conf` and prints the branches that will
+Runs `xrpld-builder compose --dry-run` on `alphanet.conf` and prints the branches that will
 be merged into `Transia-RnD/rippled@alphanet` without writing the tree. Get sign-off on the
 list. To add a branch, add a `<owner/repo> <branch> [rebase]` line to `alphanet.conf` and
 commit it here.

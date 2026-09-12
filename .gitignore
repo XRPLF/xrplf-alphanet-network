@@ -1,6 +1,6 @@
 # Topology + services YAML carrying the faucet seed and alloy credentials
 network/ansible.yml
-# xrpld-compose work tree and xrpld-lab cluster keystore
+# xrpld-builder work tree and xrpld-lab cluster keystore
 workspace/
 # IMAGE/BUILD_SERVER/BUILD_VERSION written by `make build`
 .last-build*.env

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xrplf-alphanet-network"
+version = "0.1.0"
+description = "Operations for alphanet, the XRP Ledger Foundation's live public staging network: health check, faucet funding, deploy history."
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.setuptools]
+packages = ["ops"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

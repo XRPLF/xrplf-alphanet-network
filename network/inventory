@@ -1,0 +1,37 @@
+# ALPHANET: the Foundation's LIVE public staging network.
+# networkID: 21337 on the running chain (collides with Xahau Mainnet);
+# moves to 24100 at the next genesis reset. network/settings.mk NETWORK_ID is the source of truth.
+# DNS record (xrpl.org zone):
+#   alphanet.xrpl.org         -> 79.110.60.105  (Cloudflare proxied, zone mode Full)
+#     Public clients use wss://alphanet.xrpl.org and https://alphanet.xrpl.org on 443.
+#     Cloudflare does not proxy 6018/5017, so those origin nginx ports work only direct
+#     to the IP, not through the hostname. The old *.nerdnest.xyz names are gone.
+#   rpc.alphanet.xrpl.org     -> 79.110.60.105  (DNS-only)
+#   faucet.alphanet.xrpl.org  -> 79.110.60.105  (DNS-only)
+#   vl.alphanet.xrpl.org      -> 79.110.60.105  (DNS-only; publisher list + Let's Encrypt cert,
+#                                                auto-renewing, nginx reload via deploy hook)
+# KNOWN GAP: the list is served off pnode1, the same host as the public endpoint, so halting
+# .105 in a drill also stops VL refresh. Moving it to pnode2 removes that shared failure mode.
+# Column 3 is the node name: it names the per-node drill key ($SSH_KEY_DIR/<name>) and
+# the monitoring `node` label, so both line up with the ansible node names.
+VALIDATOR 79.110.60.99  vnode1
+VALIDATOR 79.110.60.100 vnode2
+VALIDATOR 79.110.60.101 vnode3
+VALIDATOR 79.110.60.102 vnode4
+VALIDATOR 79.110.60.103 vnode5
+VALIDATOR 79.110.60.104 vnode6
+PEER      79.110.60.105 pnode1
+PEER      79.110.60.106 pnode2
+# Operator break-glass key, on every node. Never handed out.
+SSH_KEY   ~/.ssh/xrpl-labs
+# Per-node drill keys live here as <node name>; one per node so a drill participant can be
+# given exactly one node and revoked without rotating anyone else.
+SSH_KEY_DIR ~/.ssh/alphanet
+SSH_PORT  1988
+SSH_USER  root
+# Publisher list the nodes fetch. Signed by the alphanet publisher key in the cluster keystore.
+# http, not https: the blob is verified against [validator_list_keys], so integrity does not come
+# from TLS. The node containers ship no CA bundle and run [ssl_verify] 0, so https would add a
+# handshake and a failure mode while verifying nothing. The hostname also serves https for
+# browsers and external tooling.
+VL_SITE   http://vl.alphanet.xrpl.org/vl.json

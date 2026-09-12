@@ -1,0 +1,69 @@
+# Alphanet topology + services for `make cluster` (xrpld-lab create:ansible --ansible_config).
+# Copy to network/ansible.yml (gitignored) and fill in the faucet seed;
+# the seed is a live credential and must never be committed.
+ssh_port: 1988
+ssh_user: root
+# Operator break-glass key, on every node. Key of the box running the deploy, not a
+# property of the network: ~/.ssh/id_ed25519 on sentinel, ~/.ssh/xrpl-labs from a workstation.
+ssh_key_path: ~/.ssh/xrpl-labs
+
+# Per-node drill keys, so a drill participant is handed exactly one node and revoking them
+# rotates nobody else. Generate and install with `make keys-gen keys-install`.
+ssh_keys:
+  79.110.60.99: ~/.ssh/alphanet/vnode1
+  79.110.60.100: ~/.ssh/alphanet/vnode2
+  79.110.60.101: ~/.ssh/alphanet/vnode3
+  79.110.60.102: ~/.ssh/alphanet/vnode4
+  79.110.60.103: ~/.ssh/alphanet/vnode5
+  79.110.60.104: ~/.ssh/alphanet/vnode6
+  79.110.60.105: ~/.ssh/alphanet/pnode1
+  79.110.60.106: ~/.ssh/alphanet/pnode2
+
+# Telemetry sidecar. Requires --statsd_address/--perf_path on the create:ansible call so the
+# node emits StatsD and a perf log for it to read. One Basic Auth credential per node: the
+# backend maps each to its own tenant, so a leaked node credential does not carry the whole
+# network's telemetry. Credentials are live secrets — keep this file out of git.
+alloy:
+  push_host: staging.push.monitoring.xrplf.org
+  source_dir: ../xrpl-monitoring
+  node_label_prefix: alphanet-
+  credentials:
+    vnode1: { username: alphanet-1, password: REPLACE_ME }
+    vnode2: { username: alphanet-2, password: REPLACE_ME }
+    vnode3: { username: alphanet-3, password: REPLACE_ME }
+    vnode4: { username: alphanet-4, password: REPLACE_ME }
+    vnode5: { username: alphanet-5, password: REPLACE_ME }
+    vnode6: { username: alphanet-6, password: REPLACE_ME }
+    pnode1: { username: alphanet-7, password: REPLACE_ME }
+    pnode2: { username: alphanet-8, password: REPLACE_ME }
+
+vips:
+  - 79.110.60.99
+  - 79.110.60.100
+  - 79.110.60.101
+  - 79.110.60.102
+  - 79.110.60.103
+  - 79.110.60.104
+
+pips:
+  - 79.110.60.105
+  - 79.110.60.106
+
+services:
+  - ip: 79.110.60.105
+    name: peer
+    nginx:
+      domain: alphanet.xrpl.org
+      ssl_org: Transia LLC
+      ssl_ou: Transia RnD
+      ws_port: "6018"
+      rpc_port: "5017"
+      letsencrypt_email: denis@xrpl.foundation
+      letsencrypt_services:
+        - rpc
+        - faucet
+    faucet:
+      ws_url: wss://alphanet.xrpl.org
+      # Must match the chain's network id (network/settings.mk NETWORK_ID).
+      network_id: "24100"
+      seed: REPLACE_ME

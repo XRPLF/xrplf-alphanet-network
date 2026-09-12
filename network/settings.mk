@@ -19,7 +19,9 @@ endif
 FORCE_SUPPORTED ?= ON
 # No DatagramMonitor merge: the composed branch ships as-is, with no perf instrumentation.
 DATAGRAM        ?=
-# No amendment macro at deploy: the amendment set comes from the composed branch.
+# Amendment macro for xrpld-lab. Empty = the composed tree's own features.macro under
+# $(WORKSPACE)/rippled when it exists, so the amendment set is read locally from the tree that
+# was built, never fetched from the target branch.
 FEATURES_FILE   ?=
 # 1 = pre-enable every amendment in genesis (the binary is built with FORCE_SUPPORTED=ON, so
 # every amendment is supported). Genesis only; a rolling deploy never touches the amendment set.

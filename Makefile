@@ -58,7 +58,7 @@ compose:    ## merge the alphanet.conf branches into $(WORKSPACE)/rippled and wr
 	@command -v xrpld-builder >/dev/null || { echo "xrpld-builder not found"; exit 1; }
 	xrpld-builder compose --conf $(CONF) --workdir $(WORKSPACE) --force-supported $(FORCE_SUPPORTED)
 
-build:      ## Cloud Build the composed tree, push the tree to the target branch, write .last-build.env
+build:      ## Cloud Build the composed tree and write .last-build.env (run `make push` to publish the tree)
 	@command -v xrpld-builder >/dev/null || { echo "xrpld-builder not found"; exit 1; }
 	@[ -d "$(TREE)" ] || { echo "no composed tree at $(TREE); run 'make compose' first"; exit 1; }
 	@image=$$(xrpld-builder build --tree $(TREE) --project $(PROJECT) --ar $(AR) \
@@ -68,9 +68,8 @@ build:      ## Cloud Build the composed tree, push the tree to the target branch
 	 sha=$$(git -C $(TREE) rev-parse HEAD); \
 	 printf 'IMAGE=%s\nBUILD_SERVER=%s\nBUILD_VERSION=%s\n' "$$image" "$(BUILD_SERVER)" "$$sha" > $(LAST_BUILD); \
 	 echo "wrote $(LAST_BUILD): IMAGE=$$image BUILD_VERSION=$$sha"
-	$(MAKE) push
 
-push:       ## push the composed tree to $(TARGET_REPO)@$(TARGET_BRANCH) so BUILD_VERSION is fetchable
+push:       ## GPG-signed push of the composed tree to $(TARGET_REPO)@$(TARGET_BRANCH); needs GITHUB_BOT_PAT and GIT_SIGNING_KEY
 	@command -v xrpld-builder >/dev/null || { echo "xrpld-builder not found"; exit 1; }
 	xrpld-builder push --tree $(TREE) --target $(TARGET_REPO)@$(TARGET_BRANCH) --manifest $(MANIFEST) --build $(BUILD_JSON)
 
@@ -92,7 +91,7 @@ cluster:   ## generate cluster config + ansible for the inventory (xrpld-lab cre
 	  --log_level $(LOG_LEVEL) \
 	  --online_delete $(ONLINE_DELETE) \
 	  --tree_cache_target_entries $(TREE_CACHE_TARGET_ENTRIES) \
-	  $(if $(FEATURES_FILE),--features_file $(FEATURES_FILE)) \
+	  $(if $(FEATURES_FILE),--features_file $(FEATURES_FILE),$(if $(wildcard $(TREE)/include/xrpl/protocol/detail/features.macro),--features_file $(TREE)/include/xrpl/protocol/detail/features.macro)) \
 	  $(if $(filter 1,$(GENESIS)),$(if $(ALL_AMENDMENTS),--all-amendments)) \
 	  $(if $(STATSD_ADDRESS),--statsd_address $(STATSD_ADDRESS)) \
 	  $(if $(PERF_PATH),--perf_path $(PERF_PATH)) \
@@ -159,6 +158,29 @@ status:   ## print the inventory and the last recorded deploy
 	@echo "cluster:    $(WORKSPACE)/$(CLUSTER)-cluster"; echo "ansible:    $(ANSIBLE_CONFIG)"
 	@echo "last build: IMAGE=$(IMAGE) BUILD_VERSION=$(BUILD_VERSION)"
 	@$(PYTHON) -m ops.record_deploy --show-last
+
+# --- keystore backup ------------------------------------------------------------------
+# The keystore is the network's identity and exists in exactly one directory; Secret Manager
+# in the alphanet GCP project holds the copy. Secret payloads are streamed, never printed.
+KEYSTORE_DIR     := $(WORKSPACE)/$(CLUSTER)-cluster/keystore
+SECRETS_PROJECT  ?= xrplf-alphanet
+.PHONY: keystore-backup keystore-restore
+keystore-backup:   ## copy the keystore tarball and network/ansible.yml into Secret Manager ($(SECRETS_PROJECT))
+	@[ -d "$(KEYSTORE_DIR)" ] || { echo "no keystore at $(KEYSTORE_DIR)"; exit 1; }
+	@[ -f "$(ANSIBLE_CONFIG)" ] || { echo "no $(ANSIBLE_CONFIG)"; exit 1; }
+	@for name in alphanet-keystore alphanet-ansible-yml; do \
+	   gcloud secrets describe $$name --project $(SECRETS_PROJECT) >/dev/null 2>&1 || \
+	     gcloud secrets create $$name --project $(SECRETS_PROJECT) --replication-policy automatic >/dev/null; done
+	@tar -C $(dir $(KEYSTORE_DIR)) -czf - keystore | gcloud secrets versions add alphanet-keystore --project $(SECRETS_PROJECT) --data-file=- >/dev/null
+	@gcloud secrets versions add alphanet-ansible-yml --project $(SECRETS_PROJECT) --data-file=$(ANSIBLE_CONFIG) >/dev/null
+	@echo "backed up $(KEYSTORE_DIR) and $(ANSIBLE_CONFIG) to Secret Manager in $(SECRETS_PROJECT)"
+
+keystore-restore:   ## write the keystore and network/ansible.yml back from Secret Manager; refuses to overwrite a keystore
+	@[ ! -d "$(KEYSTORE_DIR)" ] || { echo "REFUSED: $(KEYSTORE_DIR) exists; move it away first"; exit 1; }
+	@mkdir -p $(dir $(KEYSTORE_DIR)) && umask 077 && \
+	 gcloud secrets versions access latest --secret alphanet-keystore --project $(SECRETS_PROJECT) | tar -C $(dir $(KEYSTORE_DIR)) -xzf - && \
+	 gcloud secrets versions access latest --secret alphanet-ansible-yml --project $(SECRETS_PROJECT) > $(ANSIBLE_CONFIG) && chmod 600 $(ANSIBLE_CONFIG)
+	@echo "restored $(KEYSTORE_DIR) and $(ANSIBLE_CONFIG)"
 
 # --- per-node drill SSH keys ---------------------------------------------------------
 # One keypair per node, so a drill participant is given exactly one node and revoking them

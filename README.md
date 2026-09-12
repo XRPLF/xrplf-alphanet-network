@@ -57,8 +57,9 @@ make deploy                                          # rolling deploy, chain pre
 and nothing else; see `docs/runbook.md`.
 
 `WORKSPACE` must point at the workspace holding the live cluster keystore (`$(WORKSPACE)/$(CLUSTER)-cluster/keystore/`),
-and `ANSIBLE_CONFIG` at the filled-in ansible YAML. Today both live on the sentinel server under
-`/home/sentinel/.sentinel/xrpld-lab/`; the runbook has the paths.
+and `ANSIBLE_CONFIG` at the filled-in ansible YAML. Both live in this checkout (`workspace/` and
+`network/ansible.yml`, gitignored) and are backed up to Secret Manager in project xrplf-alphanet
+with `make keystore-backup`; the runbook has the procedure.
 
 ## Admin RPC ports
 

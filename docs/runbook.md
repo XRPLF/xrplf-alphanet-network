@@ -5,44 +5,51 @@ separate target that refuses to run without an explicit confirmation on the comm
 
 ## Where the deploy runs
 
-Run the deploy from the checkout of this repository at `/home/sentinel/xrplf-alphanet-network`
-on the sentinel server, as the `sentinel` user. Every command below is complete on its own: it
-changes into that directory first, so it runs from any shell location. Host, port, key and user
-are in the atlas entry for `server:sentinel`. The two files
-that make the deploy alphanet's deploy live there and nowhere else today (unverified in this
-repository; check on the server before the first run):
+The deploy runs from the operator's workstation, from the checkout of this repository at
+`/Users/infinityworks/projects/xrplf/xrplf-alphanet-network` (Denis's machine; the perf network has always been driven the same way). Every command
+below is complete on its own: it changes into that directory first, so it runs from any shell
+location. The workstation needs `gcloud` logged in as denis@xrpl.foundation (Cloud Build in
+project xrplf-perf-network, Artifact Registry in xrplf-alphanet), the operator ssh key
+`~/.ssh/xrpl-labs` loaded in the agent, the `xrpld-lab` and `xrpld-builder` CLIs on `PATH`
+(`.venv/bin` in this checkout has both), and the `claude` CLI for merge conflicts.
 
-- the xrpld-lab workspace with the cluster keystore under `/home/sentinel/.sentinel/xrpld-lab/workspace/`.
-  The keystore (`keystore/vl` plus `keystore/vnode1..6`) is the network's identity: the VL
-  publisher key and the validator keys. xrpld-lab refuses a non-genesis deploy when the
-  cluster directory has no keystore, rather than minting a new identity. The directory on
-  sentinel is named `alphanet-cluster`; `CLUSTER` in `network/settings.mk` is `xrpld-alphanet`,
-  so xrpld-lab looks for `$(WORKSPACE)/xrpld-alphanet-cluster`. Rename or symlink the directory
-  on sentinel to match, or pass `CLUSTER=alphanet`, before the first deploy from this repo.
-- the filled-in ansible YAML at `/home/sentinel/.sentinel/xrpld-lab/alphanet-ansible.yml`
-  (topology, nginx and faucet services, the faucet seed, alloy credentials). Its seedless
-  template is `network/ansible.example.yml`.
+Two files make the deploy alphanet's deploy, and both are gitignored:
 
-Point the Makefile at them:
+- `workspace/xrpld-alphanet-cluster/keystore/`: the network's identity, the VL publisher key
+  and the validator keys. xrpld-lab mints it on a genesis deploy and refuses a non-genesis
+  deploy when the cluster directory has no keystore, rather than minting a new identity.
+- `network/ansible.yml`: topology, nginx, faucet (with the seed), VL and status services. Its
+  seedless template is `network/ansible.example.yml`.
+
+History: until 2026-09-12 both lived only under `/home/sentinel/.sentinel/xrpld-lab/` on the
+sentinel server. That user and directory were removed with sentinel-ai on 2026-09-07 and the
+identity was lost; the network was relaunched with a fresh genesis (network ID 24100). The
+backup below exists so that cannot happen again.
+
+### Keystore backup and restore
+
+After every genesis, and after any change to `network/ansible.yml`:
 
 ```bash
-cd /home/sentinel/xrplf-alphanet-network && printf 'WORKSPACE=/home/sentinel/.sentinel/xrpld-lab/workspace\nANSIBLE_CONFIG=/home/sentinel/.sentinel/xrpld-lab/alphanet-ansible.yml\n' > .env.mk
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make keystore-backup
 ```
 
-`network/settings.mk` includes `.env.mk` when it exists (gitignored), so the two paths are set
-once per checkout instead of per shell.
+`keystore-backup` tars `workspace/xrpld-alphanet-cluster/keystore/` and copies it plus
+`network/ansible.yml` into Secret Manager in project xrplf-alphanet as secrets
+`alphanet-keystore` and `alphanet-ansible-yml` (a new version each time, nothing printed).
 
-Never copy the keystore or the ansible YAML into this repository or another machine without
-Denis deciding it; `.gitignore` excludes `network/ansible.yml` and `workspace/`.
+On a fresh workstation:
 
-The build needs `gcloud` auth for project `xrplf-perf-network` (where Cloud Build runs) and
-push access to the Artifact Registry in `xrplf-alphanet`. `xrpld-builder push` needs push
-access to `Transia-RnD/rippled`.
+```bash
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make keystore-restore
+```
+
+`keystore-restore` writes both back (0600) and refuses to overwrite an existing keystore.
 
 ## 1. Discover
 
 ```bash
-cd /home/sentinel/xrplf-alphanet-network && make discover
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make discover
 ```
 
 Runs `xrpld-builder compose --dry-run` on `alphanet.conf` and prints the branches that will
@@ -53,8 +60,8 @@ commit it here.
 ## 2. Compose and build
 
 ```bash
-cd /home/sentinel/xrplf-alphanet-network && make compose
-cd /home/sentinel/xrplf-alphanet-network && make build
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make compose
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make build
 ```
 
 `compose` writes the merged tree to `$(WORKSPACE)/rippled` and `manifest.json`. `build` runs
@@ -67,7 +74,7 @@ list at that commit, and writes `.last-build.env` with `IMAGE`, `BUILD_SERVER` a
 ## 3. Dry run, then live
 
 ```bash
-cd /home/sentinel/xrplf-alphanet-network && make -n deploy
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make -n deploy
 ```
 
 Prints every `xrpld-lab` command that a live run would execute. Read the `create:ansible`
@@ -75,7 +82,7 @@ line: `--genesis 0`, `--network_id 24100`, `--online_delete 10000`,
 `--database_path /opt/ripple/lib/db`, the image and the build version.
 
 ```bash
-cd /home/sentinel/xrplf-alphanet-network && nohup make deploy > /home/sentinel/.sentinel/logs/alphanet-$(date +%F-%H%M).log 2>&1 < /dev/null &
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && nohup make deploy > workspace/logs/alphanet-$(date +%F-%H%M).log 2>&1 < /dev/null &
 ```
 
 `deploy` runs `cluster` with `GENESIS=0`, `network-deploy` (rolling, one host at a time, then
@@ -98,9 +105,9 @@ faucet from the new genesis account. It also applies the pending `NETWORK_ID` ch
 24100). Get explicit approval from Denis before running it.
 
 ```bash
-cd /home/sentinel/xrplf-alphanet-network && make genesis-deploy                          # refuses, exit 2, prints why
-cd /home/sentinel/xrplf-alphanet-network && make -n genesis-deploy CONFIRM_GENESIS=alphanet   # dry run of the live commands
-cd /home/sentinel/xrplf-alphanet-network && nohup make genesis-deploy CONFIRM_GENESIS=alphanet > /home/sentinel/.sentinel/logs/alphanet-genesis-$(date +%F-%H%M).log 2>&1 < /dev/null &
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make genesis-deploy                          # refuses, exit 2, prints why
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make -n genesis-deploy CONFIRM_GENESIS=alphanet   # dry run of the live commands
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && nohup make genesis-deploy CONFIRM_GENESIS=alphanet > workspace/logs/alphanet-genesis-$(date +%F-%H%M).log 2>&1 < /dev/null &
 ```
 
 `CONFIRM_GENESIS=alphanet` must be given on the make command line; an environment variable
@@ -119,7 +126,7 @@ Drop it on the next deploy once every node fetches the VL.
 ```bash
 curl -s https://alphanet.xrpl.org -X POST -H 'Content-Type: application/json' \
   -d '{"method":"server_info","params":[{}]}' | jq '.result.info.server_state, .result.info.complete_ledgers'
-cd /home/sentinel/xrplf-alphanet-network && make health
+cd /Users/infinityworks/projects/xrplf/xrplf-alphanet-network && make health
 ```
 
 Expect `proposing` or `full` and a growing `complete_ledgers`. `make health` queries each

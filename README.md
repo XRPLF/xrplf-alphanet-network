@@ -22,6 +22,7 @@ generates the cluster config, mints the keystore and runs the ansible deploy.
 | Validator list | `http://vl.alphanet.xrpl.org/vl.json` (also served over https) |
 | NetworkID | 21337 on the running chain; 24100 (`network/settings.mk` NETWORK_ID) from the next genesis reset |
 | Integration branch | `Transia-RnD/rippled@alphanet`, composed from `alphanet.conf` |
+| SDK branch | `Transia-RnD/xrpl.js@alphanet`, composed from `xrpljs.conf` after the deploy it matches |
 | Images | `us-central1-docker.pkg.dev/xrplf-alphanet/xrpld`; builds run in GCP project `xrplf-perf-network` (the org policy blocks Cloud Build's service account in a fresh project) |
 
 Every DNS record and the SSH access model are documented in `network/inventory`.
@@ -30,7 +31,8 @@ Every DNS record and the SSH access model are documented in `network/inventory`.
 
 | Path | Holds |
 |---|---|
-| `alphanet.conf` | base, target and the branches merged into the integration branch |
+| `alphanet.conf` | base, target and the branches merged into the xrpld integration branch |
+| `xrpljs.conf` | base, target and the branches merged into the xrpl.js SDK branch, and the node its definitions.json comes from |
 | `network/inventory` | hosts, roles, node names, SSH port/user/key paths, VL site, DNS record comments |
 | `network/settings.mk` | build and xrpld-lab settings: NETWORK_ID, ONLINE_DELETE, DATABASE_PATH, STATSD_ADDRESS, PERF_PATH, FORCE_SUPPORTED, CLUSTER, WORKSPACE, PROJECT, POOL, AR |
 | `network/ansible.example.yml` | template for `network/ansible.yml` (gitignored): topology, nginx, faucet, VL and status services, alloy credentials |

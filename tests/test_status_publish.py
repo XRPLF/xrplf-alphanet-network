@@ -45,31 +45,24 @@ def files(tmp_path):
     return conf, deploys
 
 
-def test_branches_from_conf_skips_base_and_target(files):
-    conf, _ = files
-    branches = status_publish.branches_from_conf(conf)
-    assert [b["branch"] for b in branches] == ["dangell7/subscriptions", "xrplf/smart-contracts"]
-    assert branches[0]["pr_url"] == "https://github.com/XRPLF/rippled/tree/dangell7/subscriptions"
-
-
-def test_render_offline_leaves_node_fields_empty(files):
+def test_render_offline_leaves_node_fields_empty(files, tmp_path):
     conf, _ = files
     inventory = parse_inventory(INVENTORY)
     network = status_publish.render_network(
-        [{"sha": "abc"}], status_publish.branches_from_conf(conf), inventory, admin_url=None)
+        [{"sha": "abc"}], status_publish.integrations_from_confs([conf], tmp_path), inventory, admin_url=None)
     assert network["last_deploy"] == {"sha": "abc"}
     assert network["vl"] == {"site": "http://vl.example/vl.json", "expiration": ""}
     assert network["faucet"] is None and network["amendments"] is None
 
 
-def test_render_with_node_fills_vl_faucet_and_amendments(files, monkeypatch):
+def test_render_with_node_fills_vl_faucet_and_amendments(files, monkeypatch, tmp_path):
     conf, _ = files
     fake_rpc = lambda url, method, params=None, timeout=10: RPC_RESPONSES[method]
     monkeypatch.setattr(status_publish, "rpc", fake_rpc)
     monkeypatch.setattr("ops.faucet.rpc", fake_rpc)
     inventory = parse_inventory(INVENTORY)
     network = status_publish.render_network(
-        [], status_publish.branches_from_conf(conf), inventory, admin_url="http://10.0.0.10:5015", faucet_seed="s")
+        [], status_publish.integrations_from_confs([conf], tmp_path), inventory, admin_url="http://10.0.0.10:5015", faucet_seed="s")
     assert network["last_deploy"] is None
     assert network["vl"]["expiration"] == "2026-10-01T00:00:00Z"
     assert network["faucet"] == {"address": "rFaucet", "balance_xrp": 2500.0}
@@ -87,28 +80,35 @@ def test_cli_offline_writes_file(files, tmp_path):
     ]) == 0
     network = json.loads(out.read_text())
     assert network["last_deploy"]["sha"] == "abc"
-    assert len(network["branches"]) == 2
+    assert len(network["integrations"]) == 1 and len(network["integrations"][0]["branches"]) == 2
 
 
-def test_branches_from_two_confs_carry_their_kind_and_base(tmp_path):
+def test_integrations_carry_kind_base_target_and_manifest_outcomes(tmp_path):
     xrpld = tmp_path / "alphanet.conf"
     xrpld.write_text(CONF)
     sdk = tmp_path / "xrpljs.conf"
     sdk.write_text(SDK_CONF)
-    branches = status_publish.branches_from_conf([xrpld, sdk])
-    assert [(b["kind"], b["branch"]) for b in branches] == [
-        ("xrpld", "dangell7/subscriptions"),
-        ("xrpld", "xrplf/smart-contracts"),
-        ("xrpl_js", "smart-contracts"),
+    (tmp_path / "alphanet").mkdir()
+    (tmp_path / "alphanet" / "manifest.json").write_text(json.dumps({
+        "composed_sha": "c0ffee", "branches": [
+            {"repo": "XRPLF/rippled", "branch": "dangell7/subscriptions", "sha": "aaa111", "outcome": "merged"},
+            {"repo": "XRPLF/rippled", "branch": "xrplf/smart-contracts", "sha": "bbb222", "outcome": "ai-resolved"},
+        ]}))
+    ints = status_publish.integrations_from_confs([xrpld, sdk], tmp_path)
+    assert [(i["kind"], i["conf"], i["base"], i["target"]) for i in ints] == [
+        ("xrpld", "alphanet", "XRPLF/rippled@develop", "Transia-RnD/rippled@alphanet"),
+        ("xrpl_js", "xrpljs", "XRPLF/xrpl.js@main", "Transia-RnD/xrpl.js@alphanet"),
     ]
-    assert branches[0]["base"] == "XRPLF/rippled@develop"
-    assert branches[-1]["base"] == "XRPLF/xrpl.js@main"
-    assert branches[-1]["pr_url"] == "https://github.com/XRPLF/xrpl.js/tree/smart-contracts"
+    assert ints[0]["composed_sha"] == "c0ffee"
+    assert [(b["branch"], b["sha"], b["outcome"]) for b in ints[0]["branches"]] == [
+        ("dangell7/subscriptions", "aaa111", "merged"), ("xrplf/smart-contracts", "bbb222", "ai-resolved")]
+    assert ints[1]["composed_sha"] is None and ints[1]["branches"][0]["outcome"] is None
+    assert ints[1]["branches"][0]["pr_url"] == "https://github.com/XRPLF/xrpl.js/tree/smart-contracts"
 
 
-def test_branches_from_conf_still_takes_one_path(tmp_path):
-    conf = tmp_path / "alphanet.conf"
-    conf.write_text(CONF)
-    assert [b["branch"] for b in status_publish.branches_from_conf(conf)] == [
-        "dangell7/subscriptions", "xrplf/smart-contracts",
-    ]
+def test_endpoints_from_public_domain():
+    inv = parse_inventory(INVENTORY + "PUBLIC_DOMAIN example.test\n")
+    assert status_publish.endpoints_from_inventory(inv) == {
+        "websocket": "wss://example.test", "json_rpc": "https://example.test",
+        "faucet_url": "https://faucet.example.test", "vl_site": "http://vl.example/vl.json"}
+    assert status_publish.endpoints_from_inventory(parse_inventory(INVENTORY)) == {"vl_site": "http://vl.example/vl.json"}

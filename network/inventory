@@ -34,4 +34,6 @@ SSH_USER  root
 # from TLS. The node containers ship no CA bundle and run [ssl_verify] 0, so https would add a
 # handshake and a failure mode while verifying nothing. The hostname also serves https for
 # browsers and external tooling.
+# Hostname behind which pnode1 serves the public WebSocket and JSON-RPC endpoints; the faucet is faucet.<domain>.
+PUBLIC_DOMAIN alphanet.xrpl.org
 VL_SITE   http://vl.alphanet.xrpl.org/vl.json

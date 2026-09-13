@@ -10,6 +10,7 @@ include network/settings.mk
 VENV_BIN  := $(CURDIR)/.venv/bin
 BUILDER   := $(if $(wildcard $(VENV_BIN)/multibranch-builder),$(VENV_BIN)/multibranch-builder,multibranch-builder)
 PYTHON    ?= $(if $(wildcard $(VENV_BIN)/python3),$(VENV_BIN)/python3,python3)
+XRPLD_LAB := $(if $(wildcard $(VENV_BIN)/xrpld-lab),$(VENV_BIN)/xrpld-lab,xrpld-lab)
 INVENTORY := network/inventory
 # Which conf compose/build/push act on. alphanet.conf composes the xrpld tree the network runs;
 # another conf composes and pushes its own integration branch but never deploys here.
@@ -115,14 +116,14 @@ redeploy:   ## compose + build + deploy, chain preserved
 # --- cluster and deploy --------------------------------------------------------------
 .PHONY: cluster network-deploy deploy genesis-deploy
 cluster:   ## generate cluster config + ansible for the inventory (xrpld-lab create:ansible)
-	@command -v xrpld-lab >/dev/null || { echo "xrpld-lab not found"; exit 1; }
+	@command -v $(XRPLD_LAB) >/dev/null || { echo "xrpld-lab not found"; exit 1; }
 	@if [ "$(GENESIS)" = "1" ] && [ -z "$(GENESIS_CONFIRMED)" ]; then \
 	   echo "REFUSED: GENESIS=1 resets the chain and wipes every account on alphanet."; \
 	   echo "Use 'make genesis-deploy CONFIRM_GENESIS=alphanet' for an intentional reset."; exit 1; fi
 	@[ -n "$(IMAGE)" ] || { echo "IMAGE= required (run 'make build' first, or pass IMAGE=)"; exit 1; }
 	@[ -f "$(ANSIBLE_CONFIG)" ] || { echo "no $(ANSIBLE_CONFIG); cp network/ansible.example.yml network/ansible.yml and fill in the faucet seed"; exit 1; }
 	@echo ">> cluster $(CLUSTER) [genesis=$(GENESIS)]: $(IMAGE)  (log_level=$(LOG_LEVEL))"
-	xrpld-lab create:ansible \
+	$(XRPLD_LAB) create:ansible \
 	  --cluster $(CLUSTER) \
 	  --genesis $(GENESIS) $(if $(GENESIS_FILE),--genesis_file $(GENESIS_FILE)) \
 	  $(if $(NETWORK_ID),--network_id $(NETWORK_ID)) \
@@ -141,13 +142,13 @@ cluster:   ## generate cluster config + ansible for the inventory (xrpld-lab cre
 	  --build_server "$(BUILD_SERVER)" --build_version "$(BUILD_VERSION)"
 
 network-deploy:   ## run the generated ansible (rolling, one host at a time), then wait for consensus
-	@command -v xrpld-lab >/dev/null || { echo "xrpld-lab not found"; exit 1; }
+	@command -v $(XRPLD_LAB) >/dev/null || { echo "xrpld-lab not found"; exit 1; }
 	@[ -f "$(MAIN_YML)" ] || { echo "no generated ansible at $(MAIN_YML); run 'make cluster' first"; exit 1; }
 	@if grep -q 'rm -rf /var/lib/xrpld/db' "$(MAIN_YML)" && [ -z "$(GENESIS_CONFIRMED)" ]; then \
 	   echo "REFUSED: $(MAIN_YML) wipes /var/lib/xrpld/db and alphanet is a live network."; \
 	   echo "Regenerate with 'make cluster' (GENESIS=0), or run 'make genesis-deploy CONFIRM_GENESIS=alphanet' for a real reset."; exit 1; fi
-	xrpld-lab deploy:ansible --name $(CLUSTER) --workspace $(WORKSPACE)
-	xrpld-lab health --vips $(VIPS)
+	$(XRPLD_LAB) deploy:ansible --name $(CLUSTER) --workspace $(WORKSPACE)
+	$(XRPLD_LAB) health --vips $(VIPS)
 
 deploy:   ## cluster + network-deploy with the last build, preserving the chain (--genesis 0)
 	@[ -n "$(IMAGE)" ] || { echo "no IMAGE: run 'make build' first (or pass IMAGE=)"; exit 1; }

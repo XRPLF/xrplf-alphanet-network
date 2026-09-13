@@ -62,6 +62,7 @@ services:
       letsencrypt_services:
         - rpc
         - faucet
+        - vl
     faucet:
       ws_url: wss://alphanet.xrpl.org
       # Must match the chain's network id (network/settings.mk NETWORK_ID).

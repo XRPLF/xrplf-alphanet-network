@@ -44,9 +44,9 @@ DATABASE_PATH   ?= /opt/ripple/lib/db
 # container's network namespace, so both ends of the StatsD hop are this loopback address.
 STATSD_ADDRESS  ?= 127.0.0.1:9125
 PERF_PATH       ?= /opt/ripple/log/perf.log
-# 1 = emit the static [validators] list alongside the publisher list, so a fresh chain reaches
-# quorum before the VL site serves. Drop it once every node fetches the VL.
-BOOTSTRAP_VL    ?=
+# 1 = emit the static [validators] list alongside the publisher list. A node reaches quorum
+# from the static list before the VL site serves; the list keeps the UNL changeable later.
+BOOTSTRAP_VL    ?= 1
 
 # xrpld-lab cluster name: $(WORKSPACE)/$(CLUSTER)-cluster holds the keystore (VL publisher key
 # plus validator keys) that is the network's identity.

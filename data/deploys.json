@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "sha": "16511a9801cd797879eebe64295cccfb8ca50558",
+    "image": "us-central1-docker.pkg.dev/xrplf-alphanet/xrpld/xrpld:alphanet-16511a98",
+    "genesis": true,
+    "date": "2026-09-13T00:52:34Z",
+    "operator": "infinityworks"
+  }
+]

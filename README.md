@@ -20,7 +20,7 @@ generates the cluster config, mints the keystore and runs the ansible deploy.
 | RPC | `rpc.alphanet.xrpl.org` (DNS-only, origin nginx port 5017) |
 | Faucet | `faucet.alphanet.xrpl.org` |
 | Validator list | `http://vl.alphanet.xrpl.org/vl.json` (also served over https) |
-| NetworkID | 21337 on the running chain; 24100 (`network/settings.mk` NETWORK_ID) from the next genesis reset |
+| NetworkID | 24100 (`network/settings.mk` NETWORK_ID), since the 2026-09-13 genesis; the previous chain ran 21337 |
 | Integration branch | `Transia-RnD/rippled@alphanet`, composed from `alphanet.conf` |
 | SDK branch | `Transia-RnD/xrpl.js@alphanet`, composed from `xrpljs.conf` after the deploy it matches |
 | Images | `us-central1-docker.pkg.dev/xrplf-alphanet/xrpld`; builds run in GCP project `xrplf-perf-network` (the org policy blocks Cloud Build's service account in a fresh project) |

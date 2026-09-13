@@ -53,7 +53,7 @@ def test_fund_signs_with_genesis_passphrase_and_keeps_reserve(monkeypatch):
     assert result.faucet_address == FAUCET_ADDRESS
     assert result.tx_hash == "ABC"
     assert submits == [{
-        "passphrase": "masterpassphrase",
+        "secret": "masterpassphrase",
         "tx_json": {
             "TransactionType": "Payment",
             "Account": faucet.GENESIS_ACCOUNT,

@@ -247,40 +247,6 @@ keys-revoke:    ## revoke one node's drill key (make keys-revoke NODE=vnode3)
 	@[ -n "$(NODE)" ] || { echo "NODE= required (e.g. NODE=vnode3)"; exit 1; }
 	$(DRILL_KEYS) revoke $(NODE)
 
-# --- monitoring ----------------------------------------------------------------------
-# Per-node Basic Auth: the monitoring backend maps each credential to its own tenant. The
-# credentials are alloy.credentials.<node> in $(ANSIBLE_CONFIG); they are piped to the node's
-# /etc/xrpl-monitoring/alloy.env (host, user) and alloy.password (mounted into the sidecar as
-# /run/secrets/xrpl_monitoring_password) and never echoed. Alphanet pushes to alloy.push_host
-# (staging.push.monitoring.xrplf.org): alert thresholds are proved here before prod trusts them.
-ALLOY_CRED = $(PYTHON) -c 'import sys,yaml; a=yaml.safe_load(open(sys.argv[1]))["alloy"]; c=a["credentials"].get(sys.argv[2]); print(a["push_host"], c["username"], c["password"]) if c else None' "$(ANSIBLE_CONFIG)"
-
-.PHONY: alloy-deploy alloy-status alloy-logs
-alloy-deploy:   ## add [insight]+[perf] and the Alloy sidecar to every node, one at a time
-	@[ -f "$(ANSIBLE_CONFIG)" ] || { echo "no $(ANSIBLE_CONFIG) (holds alloy.credentials)"; exit 1; }
-	@[ -d "$(ALLOY_SRC)" ] || { echo "no xrpl-monitoring checkout at $(ALLOY_SRC)"; exit 1; }
-	@set -- $(NODE_NAMES); names="$$*"; set -- $(VIPS) $(PIPS); ips="$$*"; i=0; \
-	 for ip in $$ips; do \
-	   i=$$((i+1)); name=$$(echo $$names | cut -d' ' -f$$i); \
-	   cred=$$($(ALLOY_CRED) "$$name"); \
-	   [ -n "$$cred" ] || { echo "$$name: no alloy.credentials.$$name in $(ANSIBLE_CONFIG); skipped"; continue; }; \
-	   host=$$(echo $$cred | awk '{print $$1}'); user=$$(echo $$cred | awk '{print $$2}'); pass=$$(echo $$cred | awk '{print $$3}'); \
-	   echo ">> $$name ($$ip) as $$user"; \
-	   rsync -az --delete -e "ssh $(SSH_OPTS)" --exclude '.git' $(ALLOY_SRC)/ $(SSH_USER)@$$ip:/opt/xrpl-monitoring/ || { echo "$$name: rsync failed"; continue; }; \
-	   scp -q -i $(SSH_KEY) -o IdentitiesOnly=yes -P $(SSH_PORT) infra/observability/alloy-node-setup.sh $(SSH_USER)@$$ip:/tmp/ || { echo "$$name: scp failed"; continue; }; \
-	   printf 'ALLOY_PUSH_HOST=%s\nALLOY_USERNAME=%s\n%s\n' "$$host" "$$user" "$$pass" | \
-	     ssh $(SSH_OPTS) $(SSH_USER)@$$ip 'mkdir -p /etc/xrpl-monitoring && umask 077 && IFS= read -r h && IFS= read -r u && IFS= read -r p && printf "%s\n%s\n" "$$h" "$$u" > /etc/xrpl-monitoring/alloy.env && printf "%s" "$$p" > /etc/xrpl-monitoring/alloy.password'; \
-	   ssh $(SSH_OPTS) $(SSH_USER)@$$ip "bash /tmp/alloy-node-setup.sh $$name alphanet-$$name $(STATSD_ADDRESS) $(PERF_PATH)"; \
-	 done
-alloy-status:   ## per-node Alloy sidecar state
-	@for ip in $(VIPS) $(PIPS); do \
-	   s=$$(ssh $(SSH_OPTS) -o ConnectTimeout=10 $(SSH_USER)@$$ip \
-	        'docker inspect -f "{{.State.Status}}" xrpl-monitoring-alloy 2>/dev/null || echo missing'); \
-	   echo "$$ip  alloy=$$s"; \
-	 done
-alloy-logs:     ## tail one node's Alloy sidecar (make alloy-logs NODE_IP=79.110.60.99)
-	@[ -n "$(NODE_IP)" ] || { echo "NODE_IP= required"; exit 1; }
-	ssh $(SSH_OPTS) $(SSH_USER)@$(NODE_IP) 'docker logs --tail 60 xrpl-monitoring-alloy'
 
 # --- tests ---------------------------------------------------------------------------
 .PHONY: test

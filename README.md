@@ -36,10 +36,9 @@ Every DNS record and the SSH access model are documented in `network/inventory`.
 | `network/inventory` | hosts, roles, node names, SSH port/user/key paths, VL site, DNS record comments |
 | `network/settings.mk` | build and xrpld-lab settings: NETWORK_ID, ONLINE_DELETE, DATABASE_PATH, STATSD_ADDRESS, PERF_PATH, FORCE_SUPPORTED, CLUSTER, WORKSPACE, PROJECT, POOL, AR |
 | `network/ansible.example.yml` | template for `network/ansible.yml` (gitignored): topology, nginx, faucet, VL and status services, alloy credentials |
-| `Makefile` | discover, compose, build, push, cluster, network-deploy, deploy, genesis-deploy, health, faucet-*, keystore-backup/restore, keys-*, alloy-*, status, status-publish, record-deploy |
+| `Makefile` | discover, compose, build, push, cluster, network-deploy, deploy, genesis-deploy, health, faucet-*, keystore-backup/restore, keys-*, status, status-publish, record-deploy |
 | `ops/` | `nodes.py` (inventory parser, admin ports), `health.py`, `faucet.py`, `record_deploy.py`, `status_publish.py` (renders `network.json` for the status page) |
 | `infra/keys/drill-keys.sh` | per-node drill SSH keys: gen, install, verify, isolate, share, revoke, list |
-| `infra/observability/alloy-node-setup.sh` | adds `[insight]` and `[perf]` to a node and runs the Grafana Alloy sidecar |
 | `data/deploys.json` | deploy history, appended by `make record-deploy` |
 | `docs/runbook.md` | the deploy procedure |
 

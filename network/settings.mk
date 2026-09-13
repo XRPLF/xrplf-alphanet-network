@@ -59,8 +59,6 @@ WORKSPACE ?= workspace
 ANSIBLE_CONFIG ?= network/ansible.yml
 # Per-checkout overrides of WORKSPACE and ANSIBLE_CONFIG (the sentinel paths), gitignored.
 -include .env.mk
-# Checkout of peersyst/xrpl-monitoring, the Alloy image build context.
-ALLOY_SRC ?= ../xrpl-monitoring
 
 # `make build` writes IMAGE, BUILD_SERVER and BUILD_VERSION here; cluster and deploy read them
 # back so nothing is copied by hand. Pass IMAGE=/BUILD_SERVER=/BUILD_VERSION= to override.

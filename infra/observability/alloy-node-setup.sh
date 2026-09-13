@@ -19,6 +19,7 @@ PERF_PATH="${4:-/opt/ripple/log/perf.log}"
 CFG=/opt/ripple/config/xrpld.cfg
 LOG_DIR=/opt/ripple/log
 ENV_FILE=/etc/xrpl-monitoring/alloy.env
+PASSWORD_FILE=/etc/xrpl-monitoring/alloy.password
 BUILD_CTX=/opt/xrpl-monitoring
 ALLOY_NAME=xrpl-monitoring-alloy
 ALLOY_IMAGE=xrpl-monitoring-alloy:local
@@ -108,6 +109,7 @@ docker rm -f "$ALLOY_NAME" >/dev/null 2>&1 || true
 docker run -d --name "$ALLOY_NAME" --restart always \
   --network "container:${CONTAINER}" \
   --env-file "$ENV_FILE" \
+  --mount type=bind,src="$PASSWORD_FILE",dst=/run/secrets/xrpl_monitoring_password,readonly \
   -e ALLOY_NODE="$NODE_LABEL" \
   -e ALLOY_STATSD_LISTEN="127.0.0.1:${STATSD_PORT}" \
   -e ALLOY_RIPPLED_STATSD_ADDRESS="127.0.0.1:${STATSD_PORT}" \

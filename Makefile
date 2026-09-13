@@ -250,7 +250,8 @@ keys-revoke:    ## revoke one node's drill key (make keys-revoke NODE=vnode3)
 # --- monitoring ----------------------------------------------------------------------
 # Per-node Basic Auth: the monitoring backend maps each credential to its own tenant. The
 # credentials are alloy.credentials.<node> in $(ANSIBLE_CONFIG); they are piped to the node's
-# /etc/xrpl-monitoring/alloy.env and never echoed. Alphanet pushes to alloy.push_host
+# /etc/xrpl-monitoring/alloy.env (host, user) and alloy.password (mounted into the sidecar as
+# /run/secrets/xrpl_monitoring_password) and never echoed. Alphanet pushes to alloy.push_host
 # (staging.push.monitoring.xrplf.org): alert thresholds are proved here before prod trusts them.
 ALLOY_CRED = $(PYTHON) -c 'import sys,yaml; a=yaml.safe_load(open(sys.argv[1]))["alloy"]; c=a["credentials"].get(sys.argv[2]); print(a["push_host"], c["username"], c["password"]) if c else None' "$(ANSIBLE_CONFIG)"
 
@@ -267,8 +268,8 @@ alloy-deploy:   ## add [insight]+[perf] and the Alloy sidecar to every node, one
 	   echo ">> $$name ($$ip) as $$user"; \
 	   rsync -az --delete -e "ssh $(SSH_OPTS)" --exclude '.git' $(ALLOY_SRC)/ $(SSH_USER)@$$ip:/opt/xrpl-monitoring/ || { echo "$$name: rsync failed"; continue; }; \
 	   scp -q -i $(SSH_KEY) -o IdentitiesOnly=yes -P $(SSH_PORT) infra/observability/alloy-node-setup.sh $(SSH_USER)@$$ip:/tmp/ || { echo "$$name: scp failed"; continue; }; \
-	   printf 'ALLOY_PUSH_HOST=%s\nALLOY_USERNAME=%s\nALLOY_PASSWORD=%s\n' "$$host" "$$user" "$$pass" | \
-	     ssh $(SSH_OPTS) $(SSH_USER)@$$ip 'mkdir -p /etc/xrpl-monitoring && umask 077 && cat > /etc/xrpl-monitoring/alloy.env'; \
+	   printf 'ALLOY_PUSH_HOST=%s\nALLOY_USERNAME=%s\n%s\n' "$$host" "$$user" "$$pass" | \
+	     ssh $(SSH_OPTS) $(SSH_USER)@$$ip 'mkdir -p /etc/xrpl-monitoring && umask 077 && head -2 > /etc/xrpl-monitoring/alloy.env && tail -1 | tr -d "\n" > /etc/xrpl-monitoring/alloy.password'; \
 	   ssh $(SSH_OPTS) $(SSH_USER)@$$ip "bash /tmp/alloy-node-setup.sh $$name alphanet-$$name $(STATSD_ADDRESS) $(PERF_PATH)"; \
 	 done
 alloy-status:   ## per-node Alloy sidecar state

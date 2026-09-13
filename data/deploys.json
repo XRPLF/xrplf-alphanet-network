@@ -12,5 +12,12 @@
     "genesis": true,
     "date": "2026-09-13T02:25:39Z",
     "operator": "infinityworks"
+  },
+  {
+    "sha": "f3eaeeaa1a6639586e1b01c4c85507130f579aec",
+    "image": "us-central1-docker.pkg.dev/xrplf-alphanet/xrpld/xrpld:alphanet-f3eaeeaa",
+    "genesis": true,
+    "date": "2026-09-13T18:17:18Z",
+    "operator": "infinityworks"
   }
 ]

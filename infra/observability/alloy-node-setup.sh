@@ -112,10 +112,9 @@ docker run -d --name "$ALLOY_NAME" --restart always \
   --mount type=bind,src="$PASSWORD_FILE",dst=/run/secrets/xrpl_monitoring_password,readonly \
   -e ALLOY_NODE="$NODE_LABEL" \
   -e ALLOY_STATSD_LISTEN="127.0.0.1:${STATSD_PORT}" \
-  -e ALLOY_RIPPLED_STATSD_ADDRESS="127.0.0.1:${STATSD_PORT}" \
-  -e ALLOY_STATSD_RELAY_ADDR="" \
-  -v "$CFG:/rippled-config/rippled.cfg:ro" \
-  -v "$LOG_DIR:/rippled-logs:ro" \
+  -e ALLOY_XRPLD_STATSD_ADDRESS="127.0.0.1:${STATSD_PORT}" \
+  -v "$CFG:/xrpld-config/xrpld.cfg:ro" \
+  -v "$LOG_DIR:/xrpld-logs:ro" \
   -v "alloy-data-${CONTAINER}:/var/lib/alloy/data" \
   "$ALLOY_IMAGE" run --server.http.listen-addr=127.0.0.1:12345 \
   --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy >/dev/null \

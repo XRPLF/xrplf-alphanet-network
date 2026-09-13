@@ -269,7 +269,7 @@ alloy-deploy:   ## add [insight]+[perf] and the Alloy sidecar to every node, one
 	   rsync -az --delete -e "ssh $(SSH_OPTS)" --exclude '.git' $(ALLOY_SRC)/ $(SSH_USER)@$$ip:/opt/xrpl-monitoring/ || { echo "$$name: rsync failed"; continue; }; \
 	   scp -q -i $(SSH_KEY) -o IdentitiesOnly=yes -P $(SSH_PORT) infra/observability/alloy-node-setup.sh $(SSH_USER)@$$ip:/tmp/ || { echo "$$name: scp failed"; continue; }; \
 	   printf 'ALLOY_PUSH_HOST=%s\nALLOY_USERNAME=%s\n%s\n' "$$host" "$$user" "$$pass" | \
-	     ssh $(SSH_OPTS) $(SSH_USER)@$$ip 'mkdir -p /etc/xrpl-monitoring && umask 077 && head -2 > /etc/xrpl-monitoring/alloy.env && tail -1 | tr -d "\n" > /etc/xrpl-monitoring/alloy.password'; \
+	     ssh $(SSH_OPTS) $(SSH_USER)@$$ip 'mkdir -p /etc/xrpl-monitoring && umask 077 && IFS= read -r h && IFS= read -r u && IFS= read -r p && printf "%s\n%s\n" "$$h" "$$u" > /etc/xrpl-monitoring/alloy.env && printf "%s" "$$p" > /etc/xrpl-monitoring/alloy.password'; \
 	   ssh $(SSH_OPTS) $(SSH_USER)@$$ip "bash /tmp/alloy-node-setup.sh $$name alphanet-$$name $(STATSD_ADDRESS) $(PERF_PATH)"; \
 	 done
 alloy-status:   ## per-node Alloy sidecar state

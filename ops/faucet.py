@@ -124,7 +124,7 @@ def fund_faucet(inventory: Inventory, faucet_seed: str) -> FundFaucetResult:
             "Fee": "12",
             "NetworkID": network_id,
         }
-        submit = rpc(admin_url, "submit", {"passphrase": GENESIS_PASSPHRASE, "tx_json": tx_json}, timeout=30)
+        submit = rpc(admin_url, "submit", {"secret": GENESIS_PASSPHRASE, "tx_json": tx_json}, timeout=30)
         result.engine_result = submit.get("engine_result", "unknown")
         result.tx_hash = submit.get("tx_json", {}).get("hash", "")
         if result.engine_result != "tesSUCCESS":

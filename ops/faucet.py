@@ -10,10 +10,10 @@ import argparse
 import sys
 from dataclasses import dataclass
 
-import requests
 import yaml
 
 from ops.nodes import Inventory, Node, load_inventory
+from ops.nodes import admin_rpc as rpc
 
 # The genesis account of every xrpld chain; its key is derived from this passphrase by the node.
 GENESIS_PASSPHRASE = "masterpassphrase"
@@ -49,12 +49,6 @@ class VerifyFaucetResult:
         return self.balance_drops > 0 and not self.error
 
 
-def rpc(admin_url: str, method: str, params: dict | None = None, timeout: float = 10) -> dict:
-    body = {"method": method, "params": [params]} if params is not None else {"method": method}
-    resp = requests.post(admin_url, json=body, timeout=timeout)
-    return resp.json()["result"]
-
-
 def load_faucet_seed(ansible_config: str) -> str:
     """Return services[].faucet.seed from the xrpld-lab ansible YAML, or '' when absent."""
     with open(ansible_config) as fh:
@@ -66,27 +60,27 @@ def load_faucet_seed(ansible_config: str) -> str:
     return ""
 
 
-def pick_admin_url(inventory: Inventory, timeout: float = 5) -> str | None:
-    """Return the first admin URL that answers server_info, peers before validators."""
+def pick_admin_node(inventory: Inventory, timeout: float = 5) -> Node | None:
+    """Return the first node whose admin RPC answers server_info, peers before validators."""
     for node in inventory.peers + inventory.validators:
         try:
-            requests.post(node.admin_url, json={"method": "server_info"}, timeout=timeout)
-            return node.admin_url
+            rpc(node, "server_info", timeout=timeout)
+            return node
         except Exception:
             continue
     return None
 
 
-def derive_address(admin_url: str, seed: str) -> str:
-    return rpc(admin_url, "wallet_propose", {"seed": seed})["account_id"]
+def derive_address(node: Node, seed: str) -> str:
+    return rpc(node, "wallet_propose", {"seed": seed})["account_id"]
 
 
-def get_network_id(admin_url: str) -> int:
-    return int(rpc(admin_url, "server_info")["info"].get("network_id", 0))
+def get_network_id(node: Node) -> int:
+    return int(rpc(node, "server_info")["info"].get("network_id", 0))
 
 
-def get_balance(admin_url: str, account: str) -> int:
-    return int(rpc(admin_url, "account_info", {"account": account})["account_data"]["Balance"])
+def get_balance(node: Node, account: str) -> int:
+    return int(rpc(node, "account_info", {"account": account})["account_data"]["Balance"])
 
 
 def fund_faucet(inventory: Inventory, faucet_seed: str) -> FundFaucetResult:
@@ -95,15 +89,15 @@ def fund_faucet(inventory: Inventory, faucet_seed: str) -> FundFaucetResult:
     if not faucet_seed:
         result.error = "no faucet seed in the ansible config (services[].faucet.seed)"
         return result
-    admin_url = pick_admin_url(inventory)
-    if not admin_url:
+    node = pick_admin_node(inventory)
+    if node is None:
         result.error = "no admin RPC endpoint answered"
         return result
     try:
-        network_id = get_network_id(admin_url)
-        result.faucet_address = derive_address(admin_url, faucet_seed)
+        network_id = get_network_id(node)
+        result.faucet_address = derive_address(node, faucet_seed)
         try:
-            existing = get_balance(admin_url, result.faucet_address)
+            existing = get_balance(node, result.faucet_address)
         except Exception:
             existing = 0
         if existing > FUNDED_THRESHOLD_DROPS:
@@ -111,7 +105,7 @@ def fund_faucet(inventory: Inventory, faucet_seed: str) -> FundFaucetResult:
             result.engine_result = "tesSUCCESS"
             return result
 
-        send_amount = get_balance(admin_url, GENESIS_ACCOUNT) - GENESIS_RESERVE_DROPS
+        send_amount = get_balance(node, GENESIS_ACCOUNT) - GENESIS_RESERVE_DROPS
         if send_amount <= 0:
             result.error = f"genesis balance too low: {send_amount + GENESIS_RESERVE_DROPS} drops"
             return result
@@ -124,7 +118,7 @@ def fund_faucet(inventory: Inventory, faucet_seed: str) -> FundFaucetResult:
             "Fee": "12",
             "NetworkID": network_id,
         }
-        submit = rpc(admin_url, "submit", {"secret": GENESIS_PASSPHRASE, "tx_json": tx_json}, timeout=30)
+        submit = rpc(node, "submit", {"secret": GENESIS_PASSPHRASE, "tx_json": tx_json}, timeout=30)
         result.engine_result = submit.get("engine_result", "unknown")
         result.tx_hash = submit.get("tx_json", {}).get("hash", "")
         if result.engine_result != "tesSUCCESS":
@@ -140,13 +134,13 @@ def verify_faucet(inventory: Inventory, faucet_seed: str, min_balance_xrp: float
     if not faucet_seed:
         result.error = "no faucet seed in the ansible config (services[].faucet.seed)"
         return result
-    admin_url = pick_admin_url(inventory)
-    if not admin_url:
+    node = pick_admin_node(inventory)
+    if node is None:
         result.error = "no admin RPC endpoint answered"
         return result
     try:
-        result.faucet_address = derive_address(admin_url, faucet_seed)
-        result.balance_drops = get_balance(admin_url, result.faucet_address)
+        result.faucet_address = derive_address(node, faucet_seed)
+        result.balance_drops = get_balance(node, result.faucet_address)
         result.balance_xrp = f"{result.balance_drops / 1_000_000:.6f}"
         if result.balance_drops < int(min_balance_xrp * 1_000_000):
             result.error = f"faucet balance {result.balance_xrp} XRP below minimum {min_balance_xrp} XRP"

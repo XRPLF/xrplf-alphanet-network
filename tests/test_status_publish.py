@@ -49,7 +49,7 @@ def test_render_offline_leaves_node_fields_empty(files, tmp_path):
     conf, _ = files
     inventory = parse_inventory(INVENTORY)
     network = status_publish.render_network(
-        [{"sha": "abc"}], status_publish.integrations_from_confs([conf], tmp_path), inventory, admin_url=None)
+        [{"sha": "abc"}], status_publish.integrations_from_confs([conf], tmp_path), inventory, node=None)
     assert network["last_deploy"] == {"sha": "abc"}
     assert network["vl"] == {"site": "http://vl.example/vl.json", "expiration": ""}
     assert network["faucet"] is None and network["amendments"] is None
@@ -62,7 +62,7 @@ def test_render_with_node_fills_vl_faucet_and_amendments(files, monkeypatch, tmp
     monkeypatch.setattr("ops.faucet.rpc", fake_rpc)
     inventory = parse_inventory(INVENTORY)
     network = status_publish.render_network(
-        [], status_publish.integrations_from_confs([conf], tmp_path), inventory, admin_url="http://10.0.0.10:5015", faucet_seed="s")
+        [], status_publish.integrations_from_confs([conf], tmp_path), inventory, node=inventory.nodes[0], faucet_seed="s")
     assert network["last_deploy"] is None
     assert network["vl"]["expiration"] == "2026-10-01T00:00:00Z"
     assert network["faucet"] == {"address": "rFaucet", "balance_xrp": 2500.0}

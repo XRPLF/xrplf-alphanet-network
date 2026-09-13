@@ -19,7 +19,9 @@ def test_admin_ports_follow_xrpld_lab_portset():
     inv = load_inventory(INVENTORY)
     assert [n.admin_port for n in inv.validators] == [5105, 5205, 5305, 5405, 5505, 5605]
     assert [n.admin_port for n in inv.peers] == [5015, 5025]
-    assert inv.by_name("pnode1").admin_url == "http://79.110.60.105:5015"
+    pnode1 = inv.by_name("pnode1")
+    assert (pnode1.ssh_user, pnode1.ssh_port) == ("root", 1988)
+    assert pnode1.ssh_key.endswith("/.ssh/xrpl-labs")
 
 
 def test_settings_and_comments():
@@ -27,7 +29,7 @@ def test_settings_and_comments():
     assert inv.settings["SSH_PORT"] == "1988"
     assert inv.settings["SSH_USER"] == "root"
     assert inv.settings["SSH_KEY_DIR"] == "~/.ssh/alphanet"
-    assert inv.settings["VL_SITE"] == "http://vl.alphanet.xrpl.org/vl.json"
+    assert inv.settings["VL_SITE"] == "https://vl.alphanet.xrpl.org/vl.json"
     assert "LIFECYCLE" not in inv.settings
 
 

@@ -8,9 +8,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 
-import requests
-
-from ops.nodes import Inventory, Node, load_inventory
+from ops.nodes import Inventory, Node, admin_rpc, load_inventory
 
 # Validators must be proposing; peers (no validation key) are full when synced.
 EXPECTED_STATE = {"validator": "proposing", "peer": "full"}
@@ -32,8 +30,7 @@ def check_node(node: Node, timeout: float = 10) -> dict:
     """Query one node's server_info and return the fields the health check reads."""
     info = {"name": node.name, "ip": node.ip, "port": node.admin_port, "role": node.role}
     try:
-        resp = requests.post(node.admin_url, json={"method": "server_info"}, timeout=timeout)
-        data = resp.json().get("result", {}).get("info", {})
+        data = admin_rpc(node, "server_info", timeout=timeout).get("info", {})
         info["state"] = data.get("server_state", "unknown")
         info["peers"] = data.get("peers", 0)
         info["validated_ledger"] = data.get("validated_ledger", {}).get("seq", 0)

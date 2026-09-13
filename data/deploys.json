@@ -5,5 +5,12 @@
     "genesis": true,
     "date": "2026-09-13T00:52:34Z",
     "operator": "infinityworks"
+  },
+  {
+    "sha": "742e66a5640b6b596ac5c7484eb8d30a8deb0108",
+    "image": "us-central1-docker.pkg.dev/xrplf-alphanet/xrpld/xrpld:alphanet-742e66a5",
+    "genesis": true,
+    "date": "2026-09-13T02:25:39Z",
+    "operator": "infinityworks"
   }
 ]

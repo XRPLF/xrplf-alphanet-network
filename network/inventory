@@ -29,11 +29,9 @@ SSH_KEY   ~/.ssh/xrpl-labs
 SSH_KEY_DIR ~/.ssh/alphanet
 SSH_PORT  1988
 SSH_USER  root
-# Publisher list the nodes fetch. Signed by the alphanet publisher key in the cluster keystore.
-# http, not https: the blob is verified against [validator_list_keys], so integrity does not come
-# from TLS. The node containers ship no CA bundle and run [ssl_verify] 0, so https would add a
-# handshake and a failure mode while verifying nothing. The hostname also serves https for
-# browsers and external tooling.
+# Publisher list the nodes fetch. Signed by the alphanet publisher key in the cluster keystore;
+# the blob is verified against [validator_list_keys]. Served over https with the Let's Encrypt
+# certificate (the node containers run [ssl_verify] 0, so no CA bundle is needed in the image).
 # Hostname behind which pnode1 serves the public WebSocket and JSON-RPC endpoints; the faucet is faucet.<domain>.
 PUBLIC_DOMAIN alphanet.xrpl.org
 VL_SITE   https://vl.alphanet.xrpl.org/vl.json

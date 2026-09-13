@@ -10,7 +10,8 @@ from pathlib import Path
 from multibranch_builder.conf import parse_config
 from multibranch_builder.targets import for_config
 
-from ops.faucet import derive_address, get_balance, load_faucet_seed, pick_admin_url, rpc
+from ops.faucet import derive_address, get_balance, load_faucet_seed, pick_admin_node, rpc
+from ops.nodes import Node
 from ops.nodes import Inventory, load_inventory
 from ops.record_deploy import load_deploys
 
@@ -66,24 +67,24 @@ def endpoints_from_inventory(inventory: Inventory) -> dict:
     }
 
 
-def vl_from_node(admin_url: str, site: str) -> dict:
+def vl_from_node(node: Node, site: str) -> dict:
     """VL site from the inventory plus the publisher list expiration the node reports."""
-    info = rpc(admin_url, "server_info")["info"]
+    info = rpc(node, "server_info")["info"]
     expiration = (info.get("validator_list") or {}).get("expiration", "")
     return {"site": site, "expiration": expiration}
 
 
-def faucet_from_node(admin_url: str, seed: str) -> dict:
-    address = derive_address(admin_url, seed)
+def faucet_from_node(node: Node, seed: str) -> dict:
+    address = derive_address(node, seed)
     try:
-        balance_xrp = get_balance(admin_url, address) / DROPS_PER_XRP
+        balance_xrp = get_balance(node, address) / DROPS_PER_XRP
     except (KeyError, ValueError):
         balance_xrp = None
     return {"address": address, "balance_xrp": balance_xrp}
 
 
-def enabled_amendments(admin_url: str) -> list[str]:
-    features = rpc(admin_url, "feature").get("features", {})
+def enabled_amendments(node: Node) -> list[str]:
+    features = rpc(node, "feature").get("features", {})
     return sorted(f["name"] for f in features.values() if f.get("enabled"))
 
 
@@ -91,7 +92,7 @@ def render_network(
     deploys: list[dict],
     integrations: list[dict],
     inventory: Inventory,
-    admin_url: str | None,
+    node: Node | None,
     faucet_seed: str = "",
 ) -> dict:
     network: dict = {
@@ -103,13 +104,13 @@ def render_network(
         "faucet": None,
         "amendments": None,
     }
-    if admin_url is None:
+    if node is None:
         return network
-    network["network_id"] = rpc(admin_url, "server_info")["info"].get("network_id")
-    network["vl"] = vl_from_node(admin_url, network["vl"]["site"])
-    network["amendments"] = {"enabled": enabled_amendments(admin_url)}
+    network["network_id"] = rpc(node, "server_info")["info"].get("network_id")
+    network["vl"] = vl_from_node(node, network["vl"]["site"])
+    network["amendments"] = {"enabled": enabled_amendments(node)}
     if faucet_seed:
-        network["faucet"] = faucet_from_node(admin_url, faucet_seed)
+        network["faucet"] = faucet_from_node(node, faucet_seed)
     return network
 
 
@@ -126,12 +127,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     inventory = load_inventory(args.inventory)
-    admin_url = None if args.offline else pick_admin_url(inventory)
-    if not args.offline and admin_url is None:
+    node = None if args.offline else pick_admin_node(inventory)
+    if not args.offline and node is None:
         print("no node answered server_info on its admin port", file=sys.stderr)
         return 1
     seed = load_faucet_seed(args.ansible_config) if args.ansible_config else ""
-    network = render_network(load_deploys(Path(args.deploys)), integrations_from_confs(args.conf, args.workspace), inventory, admin_url, seed)
+    network = render_network(load_deploys(Path(args.deploys)), integrations_from_confs(args.conf, args.workspace), inventory, node, seed)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(network, indent=2) + "\n")
